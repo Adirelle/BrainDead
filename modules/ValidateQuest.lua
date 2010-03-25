@@ -6,15 +6,24 @@ All rights reserved.
 
 local _, addon = ...
 
-local mod = addon:NewModule('ValidateQuest', 'AceHook-3.0')
+local mod = addon:NewModule('ValidateQuest')
 
 function mod:OnEnable()
 	self:Debug('Enabled')
-	self:SecureHook('QuestFrameRewardPanel_OnShow')
+	self:RegisterEvent('QUEST_PROGRESS')
+	self:RegisterEvent('QUEST_COMPLETE')
 end
 
-function mod:QuestFrameRewardPanel_OnShow()
-	if GetNumQuestChoices() == 0 and GetQuestMoneyToGet() == 0 then
-		QuestRewardCompleteButton_OnClick()
+function mod:QUEST_PROGRESS()
+	self:Debug('QUEST_PROGRESS', IsQuestCompletable())
+	if IsQuestCompletable() then
+		CompleteQuest()
+	end
+end
+
+function mod:QUEST_COMPLETE()
+	self:Debug('QUEST_COMPLETE',  GetNumQuestChoices(), GetQuestMoneyToGet())
+	if GetNumQuestChoices() < 2 and GetQuestMoneyToGet() == 0 then
+		GetQuestReward(0)
 	end
 end

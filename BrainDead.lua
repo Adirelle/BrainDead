@@ -79,14 +79,20 @@ function addon:GetOptions()
 end
 
 function addon.Feedback(self, ...)
-	print('|cffffcc00['..self.name..']|r:', ...)
+	print('|cffffcc00['..(self.uiName or self.name)..']|r:', ...)
 end
 
-addon.defaultModuleProto = 
+function addon.AFKWarning(self, target, ...)
+	if UnitIsAFK('player') and target then
+		SendChatMessage("<"..(self.uiName or self.name).."> "..strjoin(" ", tostringall(...)), "WHISPER", nil, target)
+	end
+end
+
 addon:SetDefaultModuleLibraries('AceEvent-3.0')
 addon:SetDefaultModulePrototype({
 	OnEnable = function(self) self:Debug('Enabled') end,
 	OnDisable = function(self) self:Debug('Disabled') end,
 	Debug = addon.Debug,
 	Feedback = addon.Feedback,
+	AFKWarning = addon.AFKWarning
 })

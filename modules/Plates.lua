@@ -23,7 +23,6 @@ end
 
 function mod:Update(event)
 	local enable = ((event ~= 'OnDisable') and (InCombatLockdown() or event == 'PLAYER_REGEN_DISABLED'))
-	self:Debug('Update', event, 'newState=', enable, 'currentState=', self.enabled)
 	if enable == self.enabled then return end
 	self.enabled = enable
 	local cvar = GetCVarBool('nameplateShowEnemies')
