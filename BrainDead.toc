@@ -1,0 +1,17 @@
+## Interface: 30300
+
+## Title: BrainDead
+## Notes: When you don't want to think anymore (automated tasks).
+## Author: Adirelle
+## Version: @project-version@ 
+## SavedVariables: BraindDeadDB
+## OptionalDeps: Ace3, tekDebug
+
+BrainDead.lua
+
+modules\SellJunk.lua
+modules\Plates.lua
+modules\PVPRelease.lua
+modules\ValidateQuest.lua
+modules\Repair.lua
+modules\StaticPopups.lua
