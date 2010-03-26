@@ -22,8 +22,8 @@ function mod:QUEST_PROGRESS()
 end
 
 function mod:QUEST_COMPLETE()
-	self:Debug('QUEST_COMPLETE',  GetNumQuestChoices(), GetQuestMoneyToGet())
-	if GetNumQuestChoices() < 2 and GetQuestMoneyToGet() == 0 then
-		GetQuestReward(0)
+	self:Debug('QUEST_COMPLETE', GetNumQuestChoices(), GetQuestMoneyToGet())
+	if GetNumQuestChoices() <= 1 and GetQuestMoneyToGet() == 0 then
+		GetQuestReward(1)
 	end
 end
