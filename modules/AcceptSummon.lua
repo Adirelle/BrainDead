@@ -32,7 +32,7 @@ function mod:UpdateTimer(event)
 		self:Debug('UpdateTimer', event, ': already scheduled')
 		return
 	end
-	local timeleft = GetSummonConfirmTimeLeft() - 10
+	local timeLeft = GetSummonConfirmTimeLeft() - 10
 	if timeLeft > 0 then
 		self:Feedback('Automatically confirming summon in', math.ceil(timeLeft), 'seconds')
 		self.timer = self:ScheduleTimer('Accept', timeLeft)
