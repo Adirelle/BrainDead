@@ -11,14 +11,20 @@ LibStub('AceAddon-3.0'):NewAddon(addon, addonName, 'AceEvent-3.0', 'AceHook-3.0'
 -- Debugging code
 if tekDebug then
 	local frame = tekDebug:GetFrame(addonName)
-	function addon:Debug(...) 
-		frame:AddMessage('|cffff7700['..self.name..']|r '..string.join(", ",tostringall(...)):gsub("([%[%(=]), ", "%1"):gsub(', ([%]%)])','%1'):gsub(':, ', ': ')) 
+	function addon:Debug(...)
+		frame:AddMessage('|cffff7700['..self.name..']|r '..string.join(", ",tostringall(...)):gsub("([%[%(=]), ", "%1"):gsub(', ([%]%)])','%1'):gsub(':, ', ': '))
 	end
 else
 	function addon.Debug() end
 end
 
-local DB_DEFAULTS = { profile = { modules = { ['*'] = true } } }
+local DB_DEFAULTS = {
+	profile = {
+		modules = { ['*'] = true },
+		feedback = true,
+		afkwarning = true,
+	}
+}
 
 function addon:OnInitialize()
 	self.db = LibStub('AceDB-3.0'):New('BrainDeadDB', DB_DEFAULTS, true)
@@ -42,7 +48,7 @@ end
 function addon:GetOptions()
 	if not self.options then
 		local tmp = {}
-	
+
 		self.options = {
 			name = addonName,
 			type = 'group',
@@ -71,19 +77,37 @@ function addon:GetOptions()
 						end
 						return tmp
 					end,
+					order = 10,
+				},
+				afkwarning = {
+					name = 'AFK warning',
+					desc = 'Warn people that summons/invites/ressurect you that you are AFK when '..addonName..' confirms the action for you.',
+					type = 'toggle',
+					get = function() return self.db.profile.afkwarning end,
+					set = function(_, value) self.db.profile.afkwarning = value end,
+					order = 20,
+				},
+				feedback = {
+					name = 'Feedback',
+					desc = 'Display message in chat window when '..addonName..' automatically does something.',
+					type = 'toggle',
+					get = function() return self.db.profile.feedback end,
+					set = function(_, value) self.db.profile.feedback = value end,
+					order = 30,
 				},
 			},
 		}
 	end
-	return self.options	
+	return self.options
 end
 
 function addon.Feedback(self, ...)
+	if not self.db.profile.feedback then return end
 	print('|cffffcc00['..(self.uiName or self.name)..']|r:', ...)
 end
 
 function addon.AFKWarning(self, target, ...)
-	if UnitIsAFK('player') and target then
+	if UnitIsAFK('player') and target and self.db.profile.afkwarning then
 		SendChatMessage("<"..(self.uiName or self.name).."> "..strjoin(" ", tostringall(...)), "WHISPER", nil, target)
 	end
 end
