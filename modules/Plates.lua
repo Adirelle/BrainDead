@@ -22,17 +22,17 @@ function mod:OnDisable()
 end
 
 function mod:Update(event)
-	local enable = ((event ~= 'OnDisable') and (InCombatLockdown() or event == 'PLAYER_REGEN_DISABLED'))
+	local enable = not not ((event ~= 'OnDisable') and (InCombatLockdown() or event == 'PLAYER_REGEN_DISABLED'))
 	if enable == self.enabled then return end
 	self.enabled = enable
-	local cvar = GetCVarBool('nameplateShowEnemies')
+	local cvar = not not GetCVarBool('nameplateShowEnemies')
 	self:Debug('Updating', event, 'cvar=', cvar, 'enable=', enable, 'wasEnabled=', self.wasEnabled)
 	if enable then
 		self.wasEnabled = cvar 
 	else
-		enable = self.wasEnabled 
+		enable = self.wasEnabled
 	end
-	if (enable and not cvar) or (not enable and cvar) then
+	if enable ~= cvar then
 		self:Debug('Setting nameplateShowEnemies to:', enable)
 		SetCVar('nameplateShowEnemies', enable and 1 or 0)
 	end
