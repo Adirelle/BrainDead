@@ -42,7 +42,7 @@ function mod:UpdateTimer(event)
 end
 
 function mod:Accept()
-	self:Feedback('Automatically confirm summon')
+	self:Feedback('Confirming summon from', self.summoner)
 	self:AFKWarning(self.summoner, "Automatically accepted invitation.")
 	ConfirmSummon()
 	StaticPopup_Hide('CONFIRM_SUMMON')
@@ -60,7 +60,7 @@ function mod:StaticPopup_OnHide(dialog)
 	if dialog.which == "CONFIRM_SUMMON" then
 		self:Debug('StaticPopup_OnHide')
 		self:UnregisterEvent('PLAYER_REGEN_ENABLED')
-		self:UnregisterEvent('PLAYER_REGEN_DISABLED')		
+		self:UnregisterEvent('PLAYER_REGEN_DISABLED')
 		self.summoner = nil
 		self:StopTimer()
 	end

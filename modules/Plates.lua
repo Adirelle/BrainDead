@@ -28,7 +28,7 @@ function mod:Update(event)
 	local cvar = not not GetCVarBool('nameplateShowEnemies')
 	self:Debug('Updating', event, 'cvar=', cvar, 'enable=', enable, 'wasEnabled=', self.wasEnabled)
 	if enable then
-		self.wasEnabled = cvar 
+		self.wasEnabled = cvar
 	else
 		enable = self.wasEnabled
 	end
