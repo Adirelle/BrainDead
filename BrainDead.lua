@@ -102,12 +102,12 @@ function addon:GetOptions()
 end
 
 function addon.Feedback(self, ...)
-	if not self.db.profile.feedback then return end
+	if not addon.db.profile.feedback then return end
 	print('|cffffcc00['..(self.uiName or self.name)..']|r:', ...)
 end
 
 function addon.AFKWarning(self, target, ...)
-	if UnitIsAFK('player') and target and self.db.profile.afkwarning then
+	if UnitIsAFK('player') and target and addon.db.profile.afkwarning then
 		SendChatMessage("<"..(self.uiName or self.name).."> "..strjoin(" ", tostringall(...)), "WHISPER", nil, target)
 	end
 end
