@@ -19,16 +19,16 @@ function mod:OnEnable()
 	self:Debug('Enabled')
 end
 
-function mod:Process(callback, action, report, noItems)
+function mod:Process(callback, action, done, noItem)
 	if GetCursorInfo() then 
 		return self:Feedback('Cannot '..action..' items while another action is pending.')
 	end
-	self:Debug('Looking for junk to', action)
+	self:Debug('Looking for junk to '..action)
 	local func = self[callback]
-	local count, money = 0, 0
+	local count, money, slots = 0, 0, 0
 	for bag = 0, NUM_BAG_SLOTS do
 		for slot = 1, GetContainerNumSlots(bag) do
-			local texture, _, locked, quality,  _, _, link  = GetContainerItemInfo(bag, slot)
+			local texture, stackSize, locked, quality,  _, _, link  = GetContainerItemInfo(bag, slot)
 			if texture and link and quality and not locked then
 				local linkColor = link:match('(|cff[a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9])')
 				if (quality == ITEM_QUALITY_POOR or linkColor == ITEM_QUALITY_COLORS[ITEM_QUALITY_POOR].hex) and link:match('item:%d+:0:0:0:0') then
@@ -37,18 +37,19 @@ function mod:Process(callback, action, report, noItems)
 						break
 					end
 					self:Debug('bag,slot:', bag, slot, 'link:', link, 'quality:', quality, 'linkColor:', linkColor..'XXXX|r')
-					if callback(self, bag, slot) then
+					if func(self, bag, slot, link) then
 						money = money + (tonumber(select(11, GetItemInfo(link))) or 0)
-						count = count + 1
+						count = count + stackSize
+						slots = slots + 1
 					end
 				end
 			end
 		end
 	end
 	if count > 0 then
-		self:Feedback(report:format(count, GetCoinTextureString(money)))
-	elseif noItems then
-		self:Feedback(noItems)
+		self:Feedback(("%s %d items (%d stacks), value: %s"):format(done, count, slots, GetCoinTextureString(money)))
+	elseif noItem then
+		self:Feedback(noItem)
 	end
 end
 
@@ -78,9 +79,9 @@ function mod:DestroyItem(bag, slot, link)
 end
 
 function mod:Sell()
-	return self:Process('SellItem', 'sell', 'Sold %d items for %s.')
+	return self:Process('SellItem', 'sell', 'Sold')
 end
 
 function mod:Destroy()
-	return self:Process('DestroyItem', 'destroy', 'Destroyed %d items, loss: %s.', 'No junk to destroy.')
+	return self:Process('DestroyItem', 'destroy', 'Destroyed', true)
 end
