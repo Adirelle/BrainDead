@@ -38,7 +38,7 @@ function mod:Process(callback, action, done, noItem)
 					end
 					self:Debug('bag,slot:', bag, slot, 'link:', link, 'quality:', quality, 'linkColor:', linkColor..'XXXX|r')
 					if func(self, bag, slot, link) then
-						money = money + (tonumber(select(11, GetItemInfo(link))) or 0)
+						money = money + stackSize * (tonumber(select(11, GetItemInfo(link))) or 0)
 						count = count + stackSize
 						slots = slots + 1
 					end
