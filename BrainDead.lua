@@ -40,7 +40,7 @@ local function AddOptionPanel(self, label, parent)
 end
 
 function addon:OnInitialize()
-	self.db = LibStub('AceDB-3.0'):New('BrainDeadDB', DB_DEFAULTS, true)
+	self.db = LibStub('AceDB-3.0'):New('BraindDeadDB', DB_DEFAULTS, true)
 
 	-- Main options
 	AddOptionPanel(self, addonName)
