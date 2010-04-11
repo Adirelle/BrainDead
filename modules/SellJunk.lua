@@ -171,6 +171,14 @@ function mod:GetOptions()
 				get = function() return self.db.profile.onInventoryFull end,
 				set = function(_, value) self.db.profile.onInventoryFull = value end,
 			},
+			keepOneFree = {
+				name = 'Keep one free slot',
+				desc = 'Automatically destroy the stack with lowest price when there is no free slot in regular bags.',
+				type = 'toggle',
+				order = 30,
+				get = function() return self.db.profile.keepOneFree end,
+				set = function(_, value) self.db.profile.keepOneFree = value end,
+			},
 			_itemHeader = {
 				name = 'Additional items',
 				type = 'header',
