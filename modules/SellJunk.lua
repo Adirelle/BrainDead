@@ -14,7 +14,8 @@ function mod:OnInitialize()
 			atMerchants = true,
 			onInventoryFull = false,
 			keepOneFree = false,
-			items = { ['*'] = false },
+			onlyDestroyJunk = true,
+			items = {},
 		},
 	})
 	self:RegisterChatCommand('destroyjunk', 'Destroy', true)
@@ -26,7 +27,7 @@ end
 
 function mod:OnEnable()
 	self:RegisterEvent('MERCHANT_SHOW')
-	self:RegisterEvent('UI_ERROR_MESSAGE')
+	self:RegisterBucketEvent('UI_ERROR_MESSAGE', 1)
 	self:RegisterBucketEvent('BAG_UPDATE', 1)
 	self:Debug('Enabled')
 end
@@ -37,9 +38,9 @@ function mod:MERCHANT_SHOW()
 	end
 end
 
-function mod:UI_ERROR_MESSAGE(event, message)
-	if self.db.profile.onInventoryFull and message == ERR_INV_FULL then
-		self:Feedback('Should destroy item now.')
+function mod:UI_ERROR_MESSAGE(messages)
+	if self.db.profile.onInventoryFull and messages.ERR_INV_FULL and not InCombatLockdown() then
+		return self:DestroyOne()
 	end
 end
 
@@ -51,15 +52,15 @@ function mod:BAG_UPDATE()
 			return
 		end
 	end
-	self:Feedback(ERR_INV_FULL)
+	return self:DestroyOne()
 end
 
-function mod:Process(callback, action, done, noItem)
+function mod:Process(callback, action, done, noItem, onlyJunk)
 	if GetCursorInfo() then 
 		return self:Feedback('Cannot '..action..' items while another action is pending.')
 	end
 	self:Debug('Looking for junk to '..action)
-	local func = type(callback) == "string" and self[callback] or callback
+	local func = type(callback) == "function" and callback or self[callback] or callback
 	local moreItems = self.db.profile.items
 	local count, money, slots = 0, 0, 0
 	for bag = 0, NUM_BAG_SLOTS do
@@ -68,7 +69,7 @@ function mod:Process(callback, action, done, noItem)
 			if texture and link and quality and not locked then
 				local itemId = tonumber(link:match('item:(%d+)'))
 				local linkColor = link:match('(|cff[a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9])')
-				if (quality == ITEM_QUALITY_POOR or linkColor == ITEM_QUALITY_COLORS[ITEM_QUALITY_POOR].hex or moreItems[itemId]) and link:match('item:%d+:0:0:0:0') then
+				if (quality == ITEM_QUALITY_POOR or linkColor == ITEM_QUALITY_COLORS[ITEM_QUALITY_POOR].hex or (moreItems[itemId] and not onlyJunk)) and link:match('item:%d+:0:0:0:0') then
 					if GetCursorInfo() then
 						self:Feedback('Some weird error has happened; aborting to prevent further failures.')
 						break
@@ -84,7 +85,7 @@ function mod:Process(callback, action, done, noItem)
 			end
 		end
 	end
-	if count > 0 and done then
+	if done then
 		self:Feedback(("%s %d items (%d stacks), value: %s"):format(done, count, slots, GetCoinTextureString(money)))
 	elseif noItem then
 		self:Feedback(noItem)
@@ -122,31 +123,32 @@ function mod:Sell()
 end
 
 function mod:Destroy()
-	return self:Process('DestroyItem', 'destroy', 'Destroyed', true)
+	return self:Process('DestroyItem', 'destroy', 'Destroyed', true, self.db.profile.onlyDestroyJunk)
 end
 
 function mod:DestroyOne()
-	local bestPrice, bestBag, bestSlot, bestLink
-	self:Process(function(bag, slot, link, _, price)
+	local bestPrice, bestBag, bestSlot, bestCount, bestLink
+	self:Process(function(_, bag, slot, link, count, price)
 		if not bestPrice or price < bestPrice then
-			bestPrice, bestBag, bestSlot, bestLink = price, bag, slot, lnik
+			self:Debug('New best item to destroy:', price, bag, slot, count, link)
+			bestPrice, bestBag, bestSlot, bestCount, bestLink = price, bag, slot, count, link
 		end
-	end, "destroy lowest price")
+	end, "destroy lowest price", nil, false, self.db.profile.onlyDestroyJunk)
 	if bestPrice and self:DestroyItem(bestBag, bestSlot, bestLink) then
-		self:Feedback(("Destroyed cheapest stack, value: %s"):format(GetCoinTextureString(bestPrice)))
+		self:Feedback(("Destroyed cheapest stack, %dx%s, value: %s"):format(bestCount, bestLink, GetCoinTextureString(bestPrice)))
 	end
 end
 
-
-local function GetItemId(input)
-	if not input or input:trim() == "" then return end
-	local id = tonumber(input) or tonumber(input:match('item:(%d+)'))
-	if id then return id end
-	local _, link = GetItemInfo(input:trim())
-	return link and tonumber(link:match('item:(%d+)'))
-end
-
 function mod:GetOptions()
+
+	local function GetItemId(input)
+		if not input or input:trim() == "" then return end
+		local id = tonumber(input) or tonumber(input:match('item:(%d+)'))
+		if id then return id end
+		local _, link = GetItemInfo(input:trim())
+		return link and tonumber(link:match('item:(%d+)'))
+	end
+
 	local items = {}
 	local lastRemovedItem
 
@@ -179,44 +181,56 @@ function mod:GetOptions()
 				get = function() return self.db.profile.keepOneFree end,
 				set = function(_, value) self.db.profile.keepOneFree = value end,
 			},
-			_itemHeader = {
-				name = 'Additional items',
-				type = 'header',
+			moreItems = {
+				name = 'Additional items to sell or to destroy',
+				type = 'group',
+				inline = true,
 				order = 100,
-			},
-			addItem = {
-				name = 'Add item',
-				desc = "Enter the name, link of id of an item to add it to the list of non-junk items to sell.",
-				type = 'input',
-				order = 110,
-				validate = function(_, value)
-					return GetItemId(value) and true or 'Invalid item'
-				end,
-				get = function() return lastRemovedItem end,
-				set = function(_, value)
-					lastRemovedItem  = nil
-					self.db.profile.items[GetItemId(value)] = true
-				end
-			},
-			removeItem = {
-				name = 'Remove item',
-				desc = 'Select an item to remove it from the list of non-junk items to sell.',
-				type = 'select',
-				order = 120,
-				confirm = true,
-				confirmText = 'Do you really want to remove this item from the list ?',
-				values = function()
-					wipe(items)
-					for id in pairs(self.db.profile.items) do
-						items[id] = GetItemInfo(id)
-					end
-					return items
-				end,
-				get = function() end,
-				set = function(_, value)
-					lastRemovedItem = GetItemInfo(value)
-					self.db.profile.items[value] = nil
-				end,
+				args = {
+					addItem = {
+						name = 'Add item',
+						desc = "Enter the name, link of id of an item to add it to the list of non-junk items to sell.",
+						type = 'input',
+						order = 110,
+						validate = function(_, value)
+							return GetItemId(value) and true or 'Invalid item'
+						end,
+						get = function() return lastRemovedItem end,
+						set = function(_, value)
+							lastRemovedItem  = nil
+							self.db.profile.items[GetItemId(value)] = true
+						end
+					},
+					removeItem = {
+						name = 'Remove item',
+						desc = 'Select an item to remove it from the list of non-junk items to sell.',
+						type = 'select',
+						order = 120,
+						confirm = true,
+						confirmText = 'Do you really want to remove this item from the list ?',
+						values = function()
+							wipe(items)
+							for id in pairs(self.db.profile.items) do
+								items[id] = GetItemInfo(id)
+							end
+							return items
+						end,
+						get = function() end,
+						set = function(_, value)
+							lastRemovedItem = GetItemInfo(value)
+							self.db.profile.items[value] = nil
+						end,
+					},
+					onlyDestroyJunk = {
+						name = "Do not destroy items",
+						desc = "Check this to prevent destroying items of the list. These items will only be sold.",
+						type = 'toggle',
+						order = 130,
+						get = function() return self.db.profile.onlyDestroyJunk end,
+						set = function(_, value) self.db.profile.onlyDestroyJunk = value end,
+						disabled = function() return not next(self.db.profile.items) end,
+					},
+				},
 			},
 		}
 	}
