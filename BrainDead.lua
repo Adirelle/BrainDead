@@ -12,7 +12,7 @@ LibStub('AceAddon-3.0'):NewAddon(addon, addonName, 'AceEvent-3.0', 'AceHook-3.0'
 if tekDebug then
 	local frame = tekDebug:GetFrame(addonName)
 	function addon:Debug(...)
-		frame:AddMessage('|cffff7700['..self.name..']|r '..string.join(", ",tostringall(...)):gsub("([%[%(=]), ", "%1"):gsub(', ([%]%)])','%1'):gsub(':, ', ': '))
+		frame:AddMessage('|cffff7700['..(self.moduleName or "Core")..']|r '..string.join(", ",tostringall(...)):gsub("([%[%(=]), ", "%1"):gsub(', ([%]%)])','%1'):gsub(':, ', ': '))
 	end
 else
 	function addon.Debug() end
@@ -26,12 +26,27 @@ local DB_DEFAULTS = {
 	}
 }
 
+local AceConfig = LibStub("AceConfig-3.0")
+local AceConfigDialog = LibStub("AceConfigDialog-3.0")
+
+local function AddOptionPanel(self, label, parent)
+	if not self.GetOptions then return end
+	local options
+	AceConfig:RegisterOptionsTable(self.name, function()
+		if not options then options = self:GetOptions() end
+		return options
+	end)
+	AceConfigDialog:AddToBlizOptions(self.name, label, parent)
+end
+
 function addon:OnInitialize()
 	self.db = LibStub('AceDB-3.0'):New('BrainDeadDB', DB_DEFAULTS, true)
 
 	-- Main options
-	LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, function() return self:GetOptions() end)
-	LibStub("AceConfigDialog-3.0"):AddToBlizOptions(addonName, addonName)
+	AddOptionPanel(self, addonName)
+	for name, module in self:IterateModules() do
+		AddOptionPanel(module, name, addonName)
+	end
 
 	-- Slash command
 	_G['SLASH_BRAINDEAD1'] = '/braindead'
@@ -39,66 +54,62 @@ function addon:OnInitialize()
 end
 
 function addon:OnEnable()
-
 	for name, module in self:IterateModules() do
 		module:SetEnabledState(self.db.profile.modules[name])
 	end
 end
 
 function addon:GetOptions()
-	if not self.options then
-		local tmp = {}
+	local tmp = {}
 
-		self.options = {
-			name = addonName,
-			type = 'group',
-			args = {
-				modules = {
-					name = 'Modules',
-					type = 'multiselect',
-					get = function(info, name) return self.db.profile.modules[name] end,
-					set = function(info, name, enabled)
-						self.db.profile.modules[name] = enabled
-						local module = self:GetModule(name)
-						if self:IsEnabled() then
-							if enabled then
-								module:Enable()
-							else
-								module:Disable()
-							end
+	return {
+		name = addonName,
+		type = 'group',
+		args = {
+			modules = {
+				name = 'Modules',
+				type = 'multiselect',
+				get = function(info, name) return self.db.profile.modules[name] end,
+				set = function(info, name, enabled)
+					self.db.profile.modules[name] = enabled
+					local module = self:GetModule(name)
+					if self:IsEnabled() then
+						if enabled then
+							module:Enable()
 						else
-							module:SetEnabledState(enabled)
+							module:Disable()
 						end
-					end,
-					values = function()
-						wipe(tmp)
-						for name, module in self:IterateModules() do
-							tmp[name] = module.uiName or name
-						end
-						return tmp
-					end,
-					order = 10,
-				},
-				afkwarning = {
-					name = 'AFK warning',
-					desc = 'Warn people that summons/invites/ressurect you that you are AFK when '..addonName..' confirms the action for you.',
-					type = 'toggle',
-					get = function() return self.db.profile.afkwarning end,
-					set = function(_, value) self.db.profile.afkwarning = value end,
-					order = 20,
-				},
-				feedback = {
-					name = 'Feedback',
-					desc = 'Display message in chat window when '..addonName..' automatically does something.',
-					type = 'toggle',
-					get = function() return self.db.profile.feedback end,
-					set = function(_, value) self.db.profile.feedback = value end,
-					order = 30,
-				},
+					else
+						module:SetEnabledState(enabled)
+					end
+				end,
+				values = function()
+					wipe(tmp)
+					for name, module in self:IterateModules() do
+						tmp[name] = module.uiName or name
+					end
+					return tmp
+				end,
+				order = 10,
 			},
-		}
-	end
-	return self.options
+			afkwarning = {
+				name = 'AFK warning',
+				desc = 'Warn people that summons/invites/ressurect you that you are AFK when '..addonName..' confirms the action for you.',
+				type = 'toggle',
+				get = function() return self.db.profile.afkwarning end,
+				set = function(_, value) self.db.profile.afkwarning = value end,
+				order = 20,
+			},
+			feedback = {
+				name = 'Feedback',
+				desc = 'Display message in chat window when '..addonName..' automatically does something.',
+				type = 'toggle',
+				get = function() return self.db.profile.feedback end,
+				set = function(_, value) self.db.profile.feedback = value end,
+				order = 30,
+			},
+		},
+	}
 end
 
 function addon.Feedback(self, ...)
@@ -118,5 +129,10 @@ addon:SetDefaultModulePrototype({
 	OnDisable = function(self) self:Debug('Disabled') end,
 	Debug = addon.Debug,
 	Feedback = addon.Feedback,
-	AFKWarning = addon.AFKWarning
+	AFKWarning = addon.AFKWarning,
+	RegisterDatabase = function(self, ...)
+		self.db = addon.db:RegisterNamespace(self.moduleName, ...)
+		return self.db
+	end,
 })
+
