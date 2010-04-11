@@ -39,20 +39,22 @@ function mod:MERCHANT_SHOW()
 end
 
 function mod:UI_ERROR_MESSAGE(messages)
-	if self.db.profile.onInventoryFull and messages.ERR_INV_FULL and not InCombatLockdown() then
+	if self.db.profile.onInventoryFull and messages[ERR_INV_FULL] and not InCombatLockdown() then
 		return self:DestroyOne()
 	end
 end
 
 function mod:BAG_UPDATE()
-	if not self.db.profile.keepOneFree or not IsLoggedIn() or InCombatLockdown() then return end
-	for bag = 0, NUM_BAG_SLOTS do
-		local freeSlots, bagType = GetContainerNumFreeSlots(bag)
-		if freeSlots > 0 and bagType == 0 then
-			return
+	if self.db.profile.keepOneFree and not InCombatLockdown() then
+		for bag = 0, NUM_BAG_SLOTS do
+			local freeSlots, bagType = GetContainerNumFreeSlots(bag)
+			if freeSlots > 0 and bagType == 0 then
+				self:Debug(freeSlots, 'free slots in bag', bag)
+				return
+			end
 		end
+		return self:DestroyOne()
 	end
-	return self:DestroyOne()
 end
 
 function mod:Process(callback, action, done, noItem, onlyJunk)
@@ -135,7 +137,7 @@ function mod:DestroyOne()
 		end
 	end, "destroy lowest price", nil, false, self.db.profile.onlyDestroyJunk)
 	if bestPrice and self:DestroyItem(bestBag, bestSlot, bestLink) then
-		self:Feedback(("Destroyed cheapest stack, %dx%s, value: %s"):format(bestCount, bestLink, GetCoinTextureString(bestPrice)))
+		self:Feedback(("Destroyed cheapest stack, %d x %s, value: %s"):format(bestCount, bestLink, GetCoinTextureString(bestPrice)))
 	end
 end
 
