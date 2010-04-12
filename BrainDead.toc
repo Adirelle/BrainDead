@@ -1,7 +1,7 @@
 ## Interface: 30300
 
 ## Title: BrainDead
-## Notes: When you don't want to think anymore (automated tasks).
+## Notes: A collection of small modules to automate recurring, tedious tasks.
 ## Author: Adirelle
 ## Version: @project-version@ 
 ## SavedVariables: BraindDeadDB
