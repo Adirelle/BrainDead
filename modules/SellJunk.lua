@@ -88,7 +88,9 @@ function mod:Process(callback, action, done, noItem, onlyJunk)
 		end
 	end
 	if done then
-		self:Feedback(("%s %d items (%d stacks), value: %s"):format(done, count, slots, GetCoinTextureString(money)))
+		if count > 0 then
+			self:Feedback(("%s %d items (%d stacks), value: %s"):format(done, count, slots, GetCoinTextureString(money)))
+		end
 	elseif noItem then
 		self:Feedback(noItem)
 	end
