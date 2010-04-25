@@ -31,6 +31,8 @@ function mod:UpdateTimer(event)
 	elseif self.timer then
 		self:Debug('UpdateTimer', event, ': already scheduled')
 		return
+	elseif not self:AssertNotDND('Not confirming summon while DND') then
+		return
 	end
 	local timeLeft = GetSummonConfirmTimeLeft() - 10
 	if timeLeft > 0 then

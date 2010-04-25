@@ -123,6 +123,14 @@ function addon.AFKWarning(self, target, ...)
 	end
 end
 
+function addon.AssertNotDND(self, ...)
+	if UnitIsDND('player') then
+		self:Feedback(...)
+		return false
+	end
+	return true
+end
+
 addon:SetDefaultModuleLibraries('AceEvent-3.0')
 addon:SetDefaultModulePrototype({
 	OnEnable = function(self) self:Debug('Enabled') end,
@@ -130,6 +138,7 @@ addon:SetDefaultModulePrototype({
 	Debug = addon.Debug,
 	Feedback = addon.Feedback,
 	AFKWarning = addon.AFKWarning,
+	AssertNotDND = addon.AssertNotDND,
 	RegisterDatabase = function(self, ...)
 		self.db = addon.db:RegisterNamespace(self.moduleName, ...)
 		return self.db

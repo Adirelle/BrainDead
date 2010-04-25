@@ -24,6 +24,9 @@ function mod:PARTY_INVITE_REQUEST(event, requestor)
 		end
 	end
 	if accept then
+		if not self:AssertNotDND('Not accepting invitation while DND') then
+			return
+		end
 		self:Feedback('Accepting invitation from', accept, requestor)
 		AcceptGroup()
 		self.requestor = requestor
