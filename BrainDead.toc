@@ -17,5 +17,4 @@ modules\Repair.lua
 modules\AcceptInvitation.lua
 modules\AcceptSummon.lua
 modules\AcceptResurrection.lua
-modules\LFD.lua
 
