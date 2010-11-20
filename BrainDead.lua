@@ -9,11 +9,8 @@ local addonName, addon = ...
 LibStub('AceAddon-3.0'):NewAddon(addon, addonName, 'AceEvent-3.0', 'AceHook-3.0')
 
 -- Debugging code
-if tekDebug then
-	local frame = tekDebug:GetFrame(addonName)
-	function addon:Debug(...)
-		frame:AddMessage('|cffff7700['..(self.moduleName or "Core")..']|r '..string.join(", ",tostringall(...)):gsub("([%[%(=]), ", "%1"):gsub(', ([%]%)])','%1'):gsub(':, ', ': '))
-	end
+if AdiDebug then
+	AdiDebug:Embed(addon, addonName)
 else
 	function addon.Debug() end
 end
