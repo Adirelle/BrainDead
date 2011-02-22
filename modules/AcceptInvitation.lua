@@ -26,6 +26,7 @@ function mod:PARTY_INVITE_REQUEST(event, requestor)
 	if accept then
 		if not self:AssertNotDND('Not accepting invitation while DND') then
 			return
+		end
 		local lfgMode = GetLFGMode()
 		if lfgMode and lfgMode ~= "abandonedInDungeon" then
 			self:Feedback("Not accepting while invitation while in LFG queue")
