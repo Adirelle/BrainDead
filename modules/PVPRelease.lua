@@ -14,8 +14,8 @@ function mod:OnEnable()
 end
 
 function mod:PLAYER_DEAD()
-	local _, instanceType = IsInInstance()
-	if not HasSoulstone() and instanceType == "pvp" or instanceType == "arena" or GetMapInfo() == "LakeWintergrasp" then
+	local _, instanceType, map = IsInInstance(), GetMapInfo()
+	if not HasSoulstone() and instanceType == "pvp" or instanceType == "arena" or map == "LakeWintergrasp" or map == "TolBarad" then
 		RepopMe()
 	end
 end
