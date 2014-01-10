@@ -22,6 +22,20 @@ function mod:RESURRECT_REQUEST(event, requestor)
 		return
 	end
 	self:Feedback('Accepting resurrection from', requestor)
+	self.requestor = requestor
+	self:RegisterEvent('PLAYER_ALIVE')
+	self:RegisterEvent('PLAYER_UNGHOST', 'PLAYER_ALIVE')
 	AcceptResurrect()
-	self:AFKWarning(requestor, "Automatically accepted resurrection.")
+end
+
+function mod:PLAYER_ALIVE()
+	self:UnregisterEvent('PLAYER_ALIVE')
+	self:UnregisterEvent('PLAYER_UNGHOST', 'PLAYER_ALIVE')
+	StaticPopup_Hide("RESURRECT")
+	StaticPopup_Hide("RESURRECT_NO_SICKNESS")
+	StaticPopup_Hide("RESURRECT_NO_TIMER")
+	if self.requestor then
+		self:AFKWarning(self.requestor, "Automatically accepted resurrection.")
+		self.requestor = nil
+	end
 end
