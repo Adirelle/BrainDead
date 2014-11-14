@@ -71,7 +71,7 @@ function mod:Process(callback, action, done, noItem, onlyJunk)
 			if texture and link and quality and not locked then
 				local itemId = tonumber(link:match('item:(%d+)'))
 				local linkColor = link:match('(|cff[a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9])')
-				if (quality == ITEM_QUALITY_POOR or linkColor == ITEM_QUALITY_COLORS[ITEM_QUALITY_POOR].hex or (moreItems[itemId] and not onlyJunk)) and link:match('item:%d+:0:0:0:0') then
+				if (quality == LE_ITEM_QUALITY_POOR or linkColor == ITEM_QUALITY_COLORS[LE_ITEM_QUALITY_POOR].hex or (moreItems[itemId] and not onlyJunk)) and link:match('item:%d+:0:0:0:0') then
 					if GetCursorInfo() then
 						self:Feedback('Some weird error has happened; aborting to prevent further failures.')
 						break
