@@ -1,4 +1,4 @@
-## Interface: 50400
+## Interface: 60000
 
 ## Title: BrainDead
 ## Notes: A collection of small modules to automate recurring, tedious tasks.
