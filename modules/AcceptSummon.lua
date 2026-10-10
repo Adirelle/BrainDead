@@ -8,6 +8,10 @@ local _, addon = ...
 
 local mod = addon:NewModule('AcceptSummon', 'AceTimer-3.0', 'AceHook-3.0')
 
+local GetSummonConfirmSummoner = C_SummonInfo.GetSummonConfirmSummoner
+local GetSummonConfirmTimeLeft = C_SummonInfo.GetSummonConfirmTimeLeft
+local ConfirmSummon = C_SummonInfo.ConfirmSummon
+
 function mod:OnEnable()
 	self:Debug('Enabled')
 	self:RegisterEvent('CONFIRM_SUMMON')
@@ -67,4 +71,3 @@ function mod:StaticPopup_OnHide(dialog)
 		self:StopTimer()
 	end
 end
-

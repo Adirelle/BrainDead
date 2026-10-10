@@ -8,6 +8,14 @@ local _, addon = ...
 
 local mod = addon:NewModule('SellJunk', 'AceConsole-3.0', 'AceBucket-3.0')
 
+local GetCoinTextureString = C_CurrencyInfo.GetCoinTextureString
+local GetContainerItemInfo = C_Container.GetContainerItemInfo
+local GetContainerNumFreeSlots = C_Container.GetContainerNumFreeSlots
+local GetContainerNumSlots = C_Container.GetContainerNumSlots
+local GetItemInfo = C_Item.GetItemInfo
+local PickupContainerItem = C_Container.PickupContainerItem
+local UseContainerItem = C_Container.UseContainerItem
+
 function mod:OnInitialize()
 	self:RegisterDatabase({
 		profile = {

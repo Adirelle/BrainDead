@@ -26,6 +26,8 @@ local DB_DEFAULTS = {
 local AceConfig = LibStub("AceConfig-3.0")
 local AceConfigDialog = LibStub("AceConfigDialog-3.0")
 
+local SendChatMessage = C_ChatInfo.SendChatMessage
+
 local function AddOptionPanel(self, label, parent)
 	if not self.GetOptions then return end
 	local options
@@ -141,4 +143,3 @@ addon:SetDefaultModulePrototype({
 		return self.db
 	end,
 })
-

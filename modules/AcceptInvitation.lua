@@ -8,6 +8,9 @@ local _, addon = ...
 
 local mod = addon:NewModule('AcceptInvitation')
 
+local GetFriendInfoByIndex = C_FriendList.GetFriendInfoByIndex
+local GetNumFriends = C_FriendList.GetNumFriends
+
 function mod:OnEnable()
 	self:Debug('Enabled')
 	self:RegisterEvent('PARTY_INVITE_REQUEST')
@@ -15,7 +18,7 @@ end
 
 local function DoIKnowYou(name)
 	for i = 1, GetNumFriends() do
-		if requestor == GetFriendInfo(i) then
+		if name == GetFriendInfoByIndex(i).name then
 			return 'friend'
 		end
 	end
@@ -45,7 +48,7 @@ function mod:PARTY_INVITE_REQUEST(event, requestor)
 			or GetLFGMode(LE_LFG_CATEGORY_LFR)
 		self:Debug('lfgMode', lfgMode)
 		if lfgMode and lfgMode ~= "abandonedInDungeon" then
-			self:Feedback("Not accepting while invitation while in LFG queue")
+			self:Feedback("Not accepting invitation while in LFG queue")
 			return
 		end
 		self:Feedback('Accepting invitation from', accept, requestor)

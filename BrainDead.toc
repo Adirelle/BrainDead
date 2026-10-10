@@ -1,4 +1,4 @@
-## Interface: 80000
+## Interface: 16001
 
 ## Title: BrainDead
 ## Notes: A collection of small modules to automate recurring, tedious tasks.
@@ -17,4 +17,3 @@ modules\Repair.lua
 modules\AcceptInvitation.lua
 modules\AcceptSummon.lua
 modules\AcceptResurrection.lua
-

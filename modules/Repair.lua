@@ -13,6 +13,8 @@ function mod:OnEnable()
 	self:RegisterEvent('MERCHANT_SHOW', 'Repair')
 end
 
+local GetCoinTextureString = C_CurrencyInfo.GetCoinTextureString
+
 function mod:Repair()
 	local cost, canRepair = GetRepairAllCost()
 	if type(cost) ~= "number" or not canRepair then
