@@ -35,21 +35,28 @@ local function AddOptionPanel(self, label, parent)
 		if not options then options = self:GetOptions() end
 		return options
 	end)
-	AceConfigDialog:AddToBlizOptions(self.name, label, parent)
+	return AceConfigDialog:AddToBlizOptions(self.name, label, parent)
 end
+
+-- To be replaced by an useful function in OnInitialize
+function OpenBrainDeadConfig() end
 
 function addon:OnInitialize()
 	self.db = LibStub('AceDB-3.0'):New('BraindDeadDB', DB_DEFAULTS, true)
 
 	-- Main options
-	AddOptionPanel(self, addonName)
+	local _, optionId = AddOptionPanel(self, addonName)
+	OpenBrainDeadConfig = function()
+		Settings.OpenToCategory(optionId)
+	end
+
+	-- Module options
 	for name, module in self:IterateModules() do
 		AddOptionPanel(module, name, addonName)
 	end
 
-	-- Slash command
 	_G['SLASH_BRAINDEAD1'] = '/braindead'
-	SlashCmdList.BRAINDEAD = function() InterfaceOptionsFrame_OpenToCategory(addonName) end
+	_G.SlashCmdList.BRAINDEAD = OpenBrainDeadConfig
 end
 
 function addon:OnEnable()

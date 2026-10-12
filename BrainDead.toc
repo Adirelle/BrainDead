@@ -6,6 +6,8 @@
 ## Version: @project-version@ 
 ## SavedVariables: BraindDeadDB
 ## OptionalDeps: Ace3, AdiDebug
+## IconTexture: Interface\Icons\achievement_character_undead_male
+## AddonCompartmentFunc: OpenBrainDeadConfig
 
 BrainDead.lua
 
