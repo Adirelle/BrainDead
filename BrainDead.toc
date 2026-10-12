@@ -11,11 +11,12 @@
 
 BrainDead.lua
 
-modules\SellJunk.lua
-modules\Plates.lua
-modules\PVPRelease.lua
-modules\ValidateQuest.lua
-modules\Repair.lua
 modules\AcceptInvitation.lua
-modules\AcceptSummon.lua
 modules\AcceptResurrection.lua
+modules\AcceptSummon.lua
+modules\PVPRelease.lua
+modules\Plates.lua
+modules\QuestWatch.lua
+modules\Repair.lua
+modules\SellJunk.lua
+modules\ValidateQuest.lua
