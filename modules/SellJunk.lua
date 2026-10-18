@@ -8,13 +8,11 @@ local _, addon = ...
 
 local mod = addon:NewModule('SellJunk', 'AceConsole-3.0', 'AceBucket-3.0')
 
-local GetCoinTextureString = C_CurrencyInfo.GetCoinTextureString
 local GetContainerItemInfo = C_Container.GetContainerItemInfo
 local GetContainerNumFreeSlots = C_Container.GetContainerNumFreeSlots
 local GetContainerNumSlots = C_Container.GetContainerNumSlots
 local GetItemInfo = C_Item.GetItemInfo
 local PickupContainerItem = C_Container.PickupContainerItem
-local UseContainerItem = C_Container.UseContainerItem
 
 function mod:OnInitialize()
 	self:RegisterDatabase({
@@ -26,8 +24,6 @@ function mod:OnInitialize()
 			items = {},
 		},
 	})
-	self:RegisterChatCommand('destroyjunk', 'Destroy', true)
-	self:RegisterChatCommand('dj', 'Destroy', true)
 	self:RegisterChatCommand('destroyonejunk', 'DestroyOne', true)
 	self:RegisterChatCommand('doj', 'DestroyOne', true)
 	self:Debug('Initialized')
@@ -41,8 +37,8 @@ function mod:OnEnable()
 end
 
 function mod:MERCHANT_SHOW()
-	if self.db.profile.atMerchants then
-		return self:Sell()
+	if self.db.profile.atMerchants and C_MerchantFrame.IsSellAllJunkEnabled() and C_MerchantFrame.GetNumJunkItems() > 0 then
+		C_MerchantFrame.SellAllJunkItems()
 	end
 end
 
@@ -65,94 +61,56 @@ function mod:BAG_UPDATE()
 	end
 end
 
-function mod:Process(callback, action, done, noItem, onlyJunk)
-	if GetCursorInfo() then 
-		return self:Feedback('Cannot '..action..' items while another action is pending.')
-	end
-	self:Debug('Looking for junk to '..action)
-	local func = type(callback) == "function" and callback or self[callback] or callback
-	local moreItems = self.db.profile.items
-	local count, money, slots = 0, 0, 0
+function mod:DestroyOne()
+	local bestPrice, bestBag, bestSlot, bestLink
+
 	for bag = 0, NUM_BAG_SLOTS do
 		for slot = 1, GetContainerNumSlots(bag) do
-			local texture, stackSize, locked, quality,  _, _, link  = GetContainerItemInfo(bag, slot)
-			if texture and link and quality and not locked then
-				local itemId = tonumber(link:match('item:(%d+)'))
-				local linkColor = link:match('(|cff[a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9])')
-				if (quality == LE_ITEM_QUALITY_POOR or linkColor == ITEM_QUALITY_COLORS[LE_ITEM_QUALITY_POOR].hex or (moreItems[itemId] and not onlyJunk)) and link:match('item:%d+:0:0:0:0') then
-					if GetCursorInfo() then
-						self:Feedback('Some weird error has happened; aborting to prevent further failures.')
-						break
-					end
-					self:Debug('bag,slot:', bag, slot, 'link:', link, 'quality:', quality, 'linkColor:', linkColor..'XXXX|r')
-					local price = stackSize * (tonumber(select(11, GetItemInfo(link))) or 0) 
-					if func(self, bag, slot, link, stackSize, price) then
-						money = money + price
-						count = count + stackSize
-						slots = slots + 1
-					end
+			local count, itemPrice, link = self:CanDestroy(bag, slot)
+			if count > 0 then
+				self:Debug("considering", bag, slot, link, count, itemPrice)
+				local price = count * itemPrice
+				if not bestPrice or price < bestPrice then
+					bestPrice, bestBag, bestSlot, bestLink = price, bag, slot, link
+					self:Debug("destroy candidate", bestPrice, bestBag, bestSlot, bestLink)
 				end
 			end
 		end
 	end
-	if done then
-		if count > 0 then
-			self:Feedback(("%s %d items (%d stacks), value: %s"):format(done, count, slots, GetCoinTextureString(money)))
-		end
-	elseif noItem then
-		self:Feedback(noItem)
-	end
-	return count
-end
-
-function mod:SellItem(bag, slot, link)
-	UseContainerItem(bag, slot)
-	if GetCursorInfo() then
-		self:Debug('Could not sell item', bag, slot, link, 'GetCursorInfo:', GetCursorInfo())
-		PickupContainerItem(bag, slot)
+	if not bestPrice then
+		self:Debug("nothing to destroy")
 		return
 	end
-	return true
+	self:Debug("destroying", bestPrice, bestBag, bestSlot, bestLink)
+	self:DestroyItem(bestBag, bestSlot)
 end
 
-function mod:DestroyItem(bag, slot, link)
+function mod:CanDestroy(bag, slot)
+	local info = GetContainerItemInfo(bag, slot)
+	if info then
+		if info.stackCount > 0 and info.quality == Enum.ItemQuality.Poor then
+			return info.stackCount, select(11, C_Item.GetItemInfo(info.itemID)), info.hyperlink
+		end
+	end
+	return 0, 0, nil
+end
+
+function mod:DestroyItem(bag, slot)
 	PickupContainerItem(bag, slot)
-	if not CursorHasItem() or select(3, GetCursorInfo()) ~= link then
-		self:Debug('Could not pickup item', bag, slot, link, 'GetCursorInfo:', GetCursorInfo())
+	if not CursorHasItem() then
+		self:Debug('Could not pickup item', bag, slot, 'GetCursorInfo:', GetCursorInfo())
 		return
 	end
 	DeleteCursorItem()
 	if GetCursorInfo() then
-		self:Debug('Could not destroy item', bag, slot, link, 'GetCursorInfo:', GetCursorInfo())
+		self:Debug('Could not destroy item', bag, slot, 'GetCursorInfo:', GetCursorInfo())
 		PickupContainerItem(bag, slot)
 		return
 	end
 	return true
 end
 
-function mod:Sell()
-	return self:Process('SellItem', 'sell', 'Sold')
-end
-
-function mod:Destroy()
-	return self:Process('DestroyItem', 'destroy', 'Destroyed', true, self.db.profile.onlyDestroyJunk)
-end
-
-function mod:DestroyOne()
-	local bestPrice, bestBag, bestSlot, bestCount, bestLink
-	self:Process(function(_, bag, slot, link, count, price)
-		if not bestPrice or price < bestPrice then
-			self:Debug('New best item to destroy:', price, bag, slot, count, link)
-			bestPrice, bestBag, bestSlot, bestCount, bestLink = price, bag, slot, count, link
-		end
-	end, "destroy lowest price", nil, false, self.db.profile.onlyDestroyJunk)
-	if bestPrice and self:DestroyItem(bestBag, bestSlot, bestLink) then
-		self:Feedback(("Destroyed cheapest stack, %d x %s, value: %s"):format(bestCount, bestLink, GetCoinTextureString(bestPrice)))
-	end
-end
-
 function mod:GetOptions()
-
 	local function GetItemId(input)
 		if not input or input:trim() == "" then return end
 		local id = tonumber(input) or tonumber(input:match('item:(%d+)'))
@@ -169,7 +127,7 @@ function mod:GetOptions()
 		type = 'group',
 		order = 100,
 		args = {
-			atMerchants = {	
+			atMerchants = {
 				name = 'Sell at merchant',
 				desc = 'Automatically sell junk when talking to a merchant.',
 				type = 'toggle',
@@ -209,7 +167,7 @@ function mod:GetOptions()
 						end,
 						get = function() return lastRemovedItem end,
 						set = function(_, value)
-							lastRemovedItem  = nil
+							lastRemovedItem                         = nil
 							self.db.profile.items[GetItemId(value)] = true
 						end
 					},
@@ -247,4 +205,3 @@ function mod:GetOptions()
 		}
 	}
 end
-
