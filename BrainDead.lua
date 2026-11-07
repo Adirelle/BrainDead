@@ -52,7 +52,7 @@ function addon:OnInitialize()
 
 	-- Module options
 	for name, module in self:IterateModules() do
-		AddOptionPanel(module, name, addonName)
+		AddOptionPanel(module, module.uiName or name, addonName)
 	end
 
 	_G['SLASH_BRAINDEAD1'] = '/braindead'
@@ -137,10 +137,25 @@ function addon.AssertNotDND(self, ...)
 	return true
 end
 
+function UnCamelCase(input)
+	return input:gsub("%l%u", function(match, ...)
+		addon:Debug("UnCamelCase", input, match, ...)
+		return match:sub(1, 1) .. " " .. match:sub(2):lower()
+	end)
+end
+
+function addon:OnModuleCreated(module)
+	if not module.uiName then
+		module.uiName = UnCamelCase(module.moduleName)
+	end
+	self:Debug("New module", module)
+end
+
 addon:SetDefaultModuleLibraries('AceEvent-3.0')
 addon:SetDefaultModulePrototype({
 	OnEnable = function(self) self:Debug('Enabled') end,
 	OnDisable = function(self) self:Debug('Disabled') end,
+	OnModuleCreated = addon.OnModuleCreated,
 	Debug = addon.Debug,
 	Feedback = addon.Feedback,
 	AFKWarning = addon.AFKWarning,
