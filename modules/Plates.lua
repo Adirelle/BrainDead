@@ -1,77 +1,106 @@
 --[[
 BrainDead - when you don't want to think anymore (automated tasks).
-Copyright 2010 Adirelle (adirelle@tagada-team.net)
+Copyright 2010-2026 Adirelle (adirelle@gmail.com)
+
 All rights reserved.
 ]]
 
 local _, addon = ...
 
-local mod = addon:NewModule('Plates')
+local plates = addon:NewModule('Plates')
+plates.uiName = "Name plates"
 
-function mod:OnInitialize()
-	self.modOptions = {}
+function plates:OnInitialize()
+	self:RegisterDatabase({
+		profile = {
+			modules = { ['*'] = true },
+		}
+	})
+	self:Debug('Initialized', self.db)
 end
 
-function mod:OnModuleCreated(mod)
-	self:Debug("OnModuleCreated", mod.name, mod)
+function plates:OnEnable()
+	for name, module in self:IterateModules() do
+		module:SetEnabledState(self.db.profile.modules[name])
+	end
+	self:Debug("Enabled")
 end
 
-function mod:GetOptions()
+function plates:GetOptions()
+	local tmp = {}
+	self:Debug("GetOptions")
+
 	return {
-		name = 'Plates',
+		name = "Name plates",
 		type = 'group',
-		order = 100,
-		args = self.modOptions,
+		args = {
+			plates = {
+				name = 'Show name plates only in combat',
+				type = 'multiselect',
+				get = function(_, name) return self.db.profile.modules[name] end,
+				set = function(_, name, enabled)
+					self.db.profile.modules[name] = enabled
+					local module = self:GetModule(name)
+					if self:IsEnabled() then
+						if enabled then
+							module:Enable()
+						else
+							module:Disable()
+						end
+					else
+						module:SetEnabledState(enabled)
+					end
+				end,
+				values = function()
+					wipe(tmp)
+					for name, module in self:IterateModules() do
+						tmp[name] = module.uiName or name
+					end
+					return tmp
+				end,
+			}
+		}
 	}
 end
 
-mod:SetDefaultModuleLibraries('AceEvent-3.0')
-mod:SetDefaultModuleState(true)
-mod:SetDefaultModulePrototype({
-	show = false,
-	wasShown = false,
+plates:SetDefaultModuleLibraries('AceEvent-3.0')
+plates:SetDefaultModuleState(true)
+plates:SetDefaultModulePrototype({
+	previous = 0,
 
-	Debug = mod.Debug,
-	Feedback = mod.Feedback,
-	AFKWarning = mod.AFKWarning,
-	AssertNotDND = mod.AssertNotDND,
+	Debug = plates.Debug,
 
-	RegisterDatabase = function(self, ...)
-		self.db = mod.db:RegisterNamespace(self.moduleName, ...)
-		return self.db
-	end,
+	OnInitialize = function(self) self:Debug('Initialized') end,
 
 	OnEnable = function(self)
-		self:Debug('Enabled')
-		self:RegisterEvent('PLAYER_REGEN_ENABLED', 'Update')
-		self:RegisterEvent('PLAYER_REGEN_DISABLED', 'Update')
+		self.previous = SetCVar(self.cvarName)
+
+		self:RegisterEvent('PLAYER_REGEN_ENABLED', 'Set', 0)
+		self:RegisterEvent('PLAYER_REGEN_DISABLED', 'Set', 1)
 		self:RegisterEvent('PLAYER_LOGOUT', 'Disable')
-		self:Update('OnEnable')
+
+		self:Set("OnEnable", InCombatLockdown() and 1 or 0)
+		self:Debug('Enabled')
 	end,
 
 	OnDisable = function(self)
+		self:Set("OnDisable", self.previous)
 		self:Debug('Disabled')
-		self:Update('OnDisable')
 	end,
 
-	Update = function(self, event)
-		local show = event ~= 'OnDisable' and (event == 'PLAYER_REGEN_DISABLED' or not not InCombatLockdown())
-		if show == self.show then return end
-		self.show = show
-		local current = not not GetCVarBool(self.cvarName)
-		self:Debug('Updating', self.cvarName, event, 'current=', current, 'show=', show, 'wasShown=', self.wasShown)
-		if show then
-			self.wasShown = current
-		else
-			show = self.wasShown
-		end
-		if show ~= current then
-			self:Debug('Setting', self.cvarName, 'to:', show)
-			SetCVar(self.cvarName, show and 1 or 0)
-		end
-	end
+	Set = function(self, event, value)
+		self:Debug("Set", event, value)
+		SetCVar(self.cvarName, value)
+	end,
 })
 
-for _, cvarName in ipairs({ "nameplateShowEnemies", "nameplateShowFriendlyPlayers", "nameplateShowFriendlyNpcs" }) do
-	mod:NewModule(cvarName).cvarName = cvarName
+
+for uiName, suffix in pairs({
+	["Enemies"] = "ShowEnemies",
+	["Friendly players"] = "FriendlyPlayers",
+	["Friendly NPCs"] = "FriendlyNpcs"
+}) do
+	local subplates = plates:NewModule("Plates_" .. suffix)
+	subplates.uiName = uiName
+	subplates.cvarName = "nameplateShow" .. suffix
 end
