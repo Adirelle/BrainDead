@@ -1,6 +1,7 @@
 --[[
 BrainDead - when you don't want to think anymore (automated tasks).
-Copyright 2010 Adirelle (adirelle@tagada-team.net)
+Copyright 2010-2026 Adirelle (adirelle@gmail.com)
+
 All rights reserved.
 ]]
 
@@ -12,7 +13,7 @@ LibStub('AceAddon-3.0'):NewAddon(addon, addonName, 'AceEvent-3.0', 'AceHook-3.0'
 if AdiDebug then
 	AdiDebug:Embed(addon, addonName)
 else
-	function addon.Debug() end
+	function addon.Debug(...) end
 end
 
 local DB_DEFAULTS = {
@@ -75,8 +76,8 @@ function addon:GetOptions()
 			modules = {
 				name = 'Modules',
 				type = 'multiselect',
-				get = function(info, name) return self.db.profile.modules[name] end,
-				set = function(info, name, enabled)
+				get = function(_, name) return self.db.profile.modules[name] end,
+				set = function(_, name, enabled)
 					self.db.profile.modules[name] = enabled
 					local module = self:GetModule(name)
 					if self:IsEnabled() then
@@ -100,7 +101,8 @@ function addon:GetOptions()
 			},
 			afkwarning = {
 				name = 'AFK warning',
-				desc = 'Warn people that summons/invites/ressurect you that you are AFK when '..addonName..' confirms the action for you.',
+				desc = 'Warn people that summons/invites/ressurect you that you are AFK when ' ..
+					addonName .. ' confirms the action for you.',
 				type = 'toggle',
 				get = function() return self.db.profile.afkwarning end,
 				set = function(_, value) self.db.profile.afkwarning = value end,
@@ -108,7 +110,7 @@ function addon:GetOptions()
 			},
 			feedback = {
 				name = 'Feedback',
-				desc = 'Display message in chat window when '..addonName..' automatically does something.',
+				desc = 'Display message in chat window when ' .. addonName .. ' automatically does something.',
 				type = 'toggle',
 				get = function() return self.db.profile.feedback end,
 				set = function(_, value) self.db.profile.feedback = value end,
@@ -120,12 +122,13 @@ end
 
 function addon.Feedback(self, ...)
 	if not addon.db.profile.feedback then return end
-	print('|cffffcc00['..(self.uiName or self.name)..']|r:', ...)
+	print('|cffffcc00[' .. (self.uiName or self.name) .. ']|r:', ...)
 end
 
 function addon.AFKWarning(self, target, ...)
 	if UnitIsAFK('player') and target and addon.db.profile.afkwarning then
-		SendChatMessage("<"..(self.uiName or self.name).."> "..strjoin(" ", tostringall(...)), "WHISPER", nil, target)
+		SendChatMessage("<" .. (self.uiName or self.name) .. "> " .. strjoin(" ", tostringall(...)), "WHISPER", nil,
+			target)
 	end
 end
 
@@ -153,6 +156,7 @@ end
 
 addon:SetDefaultModuleLibraries('AceEvent-3.0')
 addon:SetDefaultModulePrototype({
+	OnInitialize = function(self) self:Debug('Initialized') end,
 	OnEnable = function(self) self:Debug('Enabled') end,
 	OnDisable = function(self) self:Debug('Disabled') end,
 	OnModuleCreated = addon.OnModuleCreated,

@@ -3,7 +3,7 @@
 ## Title: BrainDead
 ## Notes: A collection of small modules to automate recurring, tedious tasks.
 ## Author: Adirelle
-## Version: @project-version@ 
+## Version: @project-version@
 ## SavedVariables: BraindDeadDB
 ## OptionalDeps: Ace3, AdiDebug
 ## IconTexture: Interface\Icons\achievement_character_undead_male

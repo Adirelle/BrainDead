@@ -1,6 +1,7 @@
 --[[
 BrainDead - when you don't want to think anymore (automated tasks).
-Copyright 2010 Adirelle (adirelle@tagada-team.net)
+Copyright 2010-2026 Adirelle (adirelle@gmail.com)
+
 All rights reserved.
 ]]
 
@@ -14,7 +15,7 @@ function mod:OnEnable()
 end
 
 function mod:PLAYER_DEAD()
-	if HasSoulstone() then return end	
+	if HasSoulstone() then return end
 	local _, instanceType = IsInInstance()
 	local map = GetMapInfo()
 	if instanceType == "pvp" or instanceType == "arena" or map == "LakeWintergrasp" or map == "TolBarad" then

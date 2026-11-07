@@ -1,15 +1,15 @@
 --[[
 BrainDead - when you don't want to think anymore (automated tasks).
-Copyright 2010 Adirelle (adirelle@tagada-team.net)
+Copyright 2010-2026 Adirelle (adirelle@gmail.com)
+
 All rights reserved.
 ]]
 
 local _, addon = ...
 
-local mod = addon:NewModule('SellJunk', 'AceConsole-3.0', 'AceBucket-3.0')
+local mod = addon:NewModule('SellJunk', 'AceConsole-3.0')
 
 local GetContainerItemInfo = C_Container.GetContainerItemInfo
-local GetContainerNumFreeSlots = C_Container.GetContainerNumFreeSlots
 local GetContainerNumSlots = C_Container.GetContainerNumSlots
 local GetItemInfo = C_Item.GetItemInfo
 local PickupContainerItem = C_Container.PickupContainerItem
@@ -17,9 +17,6 @@ local PickupContainerItem = C_Container.PickupContainerItem
 function mod:OnInitialize()
 	self:RegisterDatabase({
 		profile = {
-			atMerchants = true,
-			onInventoryFull = false,
-			keepOneFree = false,
 			onlyDestroyJunk = true,
 			items = {},
 		},
@@ -30,34 +27,20 @@ function mod:OnInitialize()
 end
 
 function mod:OnEnable()
-	self:RegisterEvent('MERCHANT_SHOW')
-	self:RegisterBucketEvent('UI_ERROR_MESSAGE', 1)
-	self:RegisterBucketEvent('BAG_UPDATE', 1)
 	self:Debug('Enabled')
+	self:RegisterEvent('MERCHANT_SHOW')
 end
 
 function mod:MERCHANT_SHOW()
-	if self.db.profile.atMerchants and C_MerchantFrame.IsSellAllJunkEnabled() and C_MerchantFrame.GetNumJunkItems() > 0 then
+	self:Debug("on:MERCHANT_SHOW")
+	if not C_MerchantFrame.IsSellAllJunkEnabled() then
+		return
+	end
+	local junkCount = C_MerchantFrame.GetNumJunkItems()
+
+	if junkCount > 0 then
+		self:Feedback("Selling", junkCount, "junk item(s) at merchant")
 		C_MerchantFrame.SellAllJunkItems()
-	end
-end
-
-function mod:UI_ERROR_MESSAGE(messages)
-	if self.db.profile.onInventoryFull and messages[ERR_INV_FULL] and not InCombatLockdown() then
-		return self:DestroyOne()
-	end
-end
-
-function mod:BAG_UPDATE()
-	if self.db.profile.keepOneFree and not InCombatLockdown() then
-		for bag = 0, NUM_BAG_SLOTS do
-			local freeSlots, bagType = GetContainerNumFreeSlots(bag)
-			if freeSlots > 0 and bagType == 0 then
-				self:Debug(freeSlots, 'free slots in bag', bag)
-				return
-			end
-		end
-		return self:DestroyOne()
 	end
 end
 
@@ -79,6 +62,7 @@ function mod:DestroyOne()
 	end
 	if not bestPrice then
 		self:Debug("nothing to destroy")
+		self:Feedback("Cannot find junk to destroy")
 		return
 	end
 	self:Debug("destroying", bestPrice, bestBag, bestSlot, bestLink)
@@ -96,9 +80,11 @@ function mod:CanDestroy(bag, slot)
 end
 
 function mod:DestroyItem(bag, slot)
+	local info = GetContainerItemInfo(bag, slot)
 	PickupContainerItem(bag, slot)
-	if not CursorHasItem() then
-		self:Debug('Could not pickup item', bag, slot, 'GetCursorInfo:', GetCursorInfo())
+	local type, itemID, link = GetCursorInfo()
+	if type ~= "item" or itemID ~= info.itemID then
+		self:Debug('Could not pickup item', bag, slot, 'GetCursorInfo:', type, itemID, link)
 		return
 	end
 	DeleteCursorItem()
@@ -107,6 +93,7 @@ function mod:DestroyItem(bag, slot)
 		PickupContainerItem(bag, slot)
 		return
 	end
+	self:Feedback("Destroyed", info.stackCount, link)
 	return true
 end
 
@@ -127,30 +114,6 @@ function mod:GetOptions()
 		type = 'group',
 		order = 100,
 		args = {
-			atMerchants = {
-				name = 'Sell at merchant',
-				desc = 'Automatically sell junk when talking to a merchant.',
-				type = 'toggle',
-				order = 10,
-				get = function() return self.db.profile.atMerchants end,
-				set = function(_, value) self.db.profile.atMerchants = value end,
-			},
-			onInventoryFull = {
-				name = 'On full inventory',
-				desc = 'Automatically destroy the stack with lowest price when receiving the "inventory full" error.',
-				type = 'toggle',
-				order = 20,
-				get = function() return self.db.profile.onInventoryFull end,
-				set = function(_, value) self.db.profile.onInventoryFull = value end,
-			},
-			keepOneFree = {
-				name = 'Keep one free slot',
-				desc = 'Automatically destroy the stack with lowest price when there is no free slot in regular bags.',
-				type = 'toggle',
-				order = 30,
-				get = function() return self.db.profile.keepOneFree end,
-				set = function(_, value) self.db.profile.keepOneFree = value end,
-			},
 			moreItems = {
 				name = 'Additional items to sell or to destroy',
 				type = 'group',

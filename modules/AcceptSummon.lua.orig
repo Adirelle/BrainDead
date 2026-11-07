@@ -1,6 +1,7 @@
 --[[
 BrainDead - when you don't want to think anymore (automated tasks).
-Copyright 2010 Adirelle (adirelle@tagada-team.net)
+Copyright 2010-2026 Adirelle (adirelle@gmail.com)
+
 All rights reserved.
 ]]
 
@@ -33,7 +34,7 @@ function mod:UpdateTimer(event)
 		return
 	elseif not self:AssertNotDND('Not confirming summon while DND') then
 		return
-	end	
+	end
 	local timeLeft = GetSummonConfirmTimeLeft() - 10
 	if timeLeft > 0 then
 		self:Feedback('Automatically confirming summon in', math.ceil(timeLeft), 'seconds')
@@ -67,4 +68,3 @@ function mod:StaticPopup_OnHide(dialog)
 		self:StopTimer()
 	end
 end
-

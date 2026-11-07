@@ -1,6 +1,7 @@
 --[[
 BrainDead - when you don't want to think anymore (automated tasks).
-Copyright 2010 Adirelle (adirelle@tagada-team.net)
+Copyright 2010-2026 Adirelle (adirelle@gmail.com)
+
 All rights reserved.
 ]]
 

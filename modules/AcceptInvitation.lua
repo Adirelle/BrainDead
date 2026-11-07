@@ -1,6 +1,7 @@
 --[[
 BrainDead - when you don't want to think anymore (automated tasks).
-Copyright 2010 Adirelle (adirelle@tagada-team.net)
+Copyright 2010-2026 Adirelle (adirelle@gmail.com)
+
 All rights reserved.
 ]]
 
@@ -24,7 +25,7 @@ local function DoIKnowYou(name)
 	end
 	if IsInGuild() then
 		local shortname, realm = strsplit('-', name, 2)
-		local fqdn = shortname..'-'..(realm or GetRealmName())
+		local fqdn = shortname .. '-' .. (realm or GetRealmName())
 		for i = 1, GetNumGuildMembers() do
 			if fqdn == GetGuildRosterInfo(i) then
 				return 'guildmate'
