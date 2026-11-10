@@ -7,70 +7,8 @@ All rights reserved.
 
 local _, addon = ...
 
-local plates = addon:NewModule('Plates')
-plates.uiName = "Name plates"
-
-function plates:OnInitialize()
-	self:RegisterDatabase({
-		profile = {
-			modules = { ['*'] = true },
-		}
-	})
-	self:Debug('Initialized', self.db)
-end
-
-function plates:OnEnable()
-	for name, module in self:IterateModules() do
-		module:SetEnabledState(self.db.profile.modules[name])
-	end
-	self:Debug("Enabled")
-end
-
-function plates:GetOptions()
-	local tmp = {}
-	self:Debug("GetOptions")
-
-	return {
-		name = "Name plates",
-		type = 'group',
-		args = {
-			plates = {
-				name = 'Show name plates only in combat',
-				type = 'multiselect',
-				get = function(_, name) return self.db.profile.modules[name] end,
-				set = function(_, name, enabled)
-					self.db.profile.modules[name] = enabled
-					local module = self:GetModule(name)
-					if self:IsEnabled() then
-						if enabled then
-							module:Enable()
-						else
-							module:Disable()
-						end
-					else
-						module:SetEnabledState(enabled)
-					end
-				end,
-				values = function()
-					wipe(tmp)
-					for name, module in self:IterateModules() do
-						tmp[name] = module.uiName or name
-					end
-					return tmp
-				end,
-			}
-		}
-	}
-end
-
-plates:SetDefaultModuleLibraries('AceEvent-3.0')
-plates:SetDefaultModuleState(true)
-plates:SetDefaultModulePrototype({
+local modProto = setmetatable({
 	previous = 0,
-
-	Debug = plates.Debug,
-
-	OnInitialize = function(self) self:Debug('Initialized') end,
 
 	OnEnable = function(self)
 		self.previous = SetCVar(self.cvarName)
@@ -92,15 +30,14 @@ plates:SetDefaultModulePrototype({
 		self:Debug("Set", event, self.cvarName, value)
 		SetCVar(self.cvarName, value)
 	end,
-})
-
+}, { __index = addon.defaultModulePrototype })
 
 for uiName, suffix in pairs({
-	["Enemies"] = "Enemies",
-	["Friendly players"] = "FriendlyPlayers",
-	["Friendly NPCs"] = "FriendlyNpcs"
+	["enemies"] = "Enemies",
+	["friendly players"] = "FriendlyPlayers",
+	["friendly NPCs"] = "FriendlyNpcs"
 }) do
-	local subplates = plates:NewModule("Plates_" .. suffix)
-	subplates.uiName = uiName
-	subplates.cvarName = "nameplateShow" .. suffix
+	local plateMod = addon:NewModule("Plates_" .. suffix, modProto)
+	plateMod.uiName = "Show " .. uiName .. " nameplates in combat"
+	plateMod.cvarName = "nameplateShow" .. suffix
 end
