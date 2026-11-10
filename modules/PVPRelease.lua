@@ -8,6 +8,7 @@ All rights reserved.
 local _, addon = ...
 
 local mod = addon:NewModule('PVPRelease')
+mod.uiName = "Release in battleground and PvP zones"
 
 function mod:OnEnable()
 	self:Debug('Enabled')

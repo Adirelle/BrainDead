@@ -8,6 +8,7 @@ All rights reserved.
 local _, addon = ...
 
 local mod = addon:NewModule('Repair')
+mod.uiName = "Repair at merchant"
 
 function mod:OnEnable()
 	self:Debug('Enabled')

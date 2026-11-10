@@ -8,6 +8,7 @@ All rights reserved.
 local _, addon = ...
 
 local mod = addon:NewModule('ValidateQuest')
+mod.uiName = "Turn in quests with no reward choice"
 
 function mod:OnEnable()
 	self:Debug('Enabled')

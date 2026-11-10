@@ -8,10 +8,10 @@ All rights reserved.
 local _, addon = ...
 
 local mod = addon:NewModule('SellJunk', 'AceConsole-3.0')
+mod.uiName = "Sell junk to merchant"
 
 local GetContainerItemInfo = C_Container.GetContainerItemInfo
 local GetContainerNumSlots = C_Container.GetContainerNumSlots
-local GetItemInfo = C_Item.GetItemInfo
 local PickupContainerItem = C_Container.PickupContainerItem
 
 function mod:OnInitialize()

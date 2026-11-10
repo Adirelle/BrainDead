@@ -8,6 +8,7 @@ All rights reserved.
 local _, addon = ...
 
 local mod = addon:NewModule('QuestWatch', "AceBucket-3.0", "AceHook-3.0")
+mod.uiName = "(Un)watch quests based on current zone"
 
 local update_events = {
 	"PLAYER_ENTERING_WORLD",

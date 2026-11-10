@@ -8,6 +8,7 @@ All rights reserved.
 local _, addon = ...
 
 local mod = addon:NewModule('QuietFishing', "AceEvent-3.0")
+mod.uiName = "Suppress distracting sounds when fishing"
 
 local fishingPoleLocation = ItemLocation:CreateFromEquipmentSlot(_G.INVSLOT_MAINHAND)
 
