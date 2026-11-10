@@ -17,6 +17,7 @@ modules\AcceptSummon.lua
 modules\PVPRelease.lua
 modules\Plates.lua
 modules\QuestWatch.lua
+modules\QuietFishing.lua
 modules\Repair.lua
 modules\SellJunk.lua
 modules\ValidateQuest.lua
