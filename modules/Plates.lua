@@ -84,19 +84,19 @@ plates:SetDefaultModulePrototype({
 	end,
 
 	OnDisable = function(self)
-		self:Set("OnDisable", self.previous)
+		self:Set(self.previous, "OnDisable")
 		self:Debug('Disabled')
 	end,
 
-	Set = function(self, event, value)
-		self:Debug("Set", event, value)
+	Set = function(self, value, event)
+		self:Debug("Set", event, self.cvarName, value)
 		SetCVar(self.cvarName, value)
 	end,
 })
 
 
 for uiName, suffix in pairs({
-	["Enemies"] = "ShowEnemies",
+	["Enemies"] = "Enemies",
 	["Friendly players"] = "FriendlyPlayers",
 	["Friendly NPCs"] = "FriendlyNpcs"
 }) do
