@@ -67,14 +67,17 @@ function addon:OnEnable()
 end
 
 function addon:GetOptions()
-	local tmp = {}
+	local moduleList = {}
+	for name, module in self:IterateModules() do
+		moduleList[name] = module.uiName or name
+	end
 
 	return {
 		name = addonName,
 		type = 'group',
 		args = {
 			modules = {
-				name = 'Modules',
+				name = 'Automatically ...',
 				type = 'multiselect',
 				get = function(_, name) return self.db.profile.modules[name] end,
 				set = function(_, name, enabled)
@@ -90,13 +93,7 @@ function addon:GetOptions()
 						module:SetEnabledState(enabled)
 					end
 				end,
-				values = function()
-					wipe(tmp)
-					for name, module in self:IterateModules() do
-						tmp[name] = module.uiName or name
-					end
-					return tmp
-				end,
+				values = moduleList,
 				order = 10,
 			},
 			afkwarning = {
