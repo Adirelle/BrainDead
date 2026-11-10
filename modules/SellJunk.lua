@@ -15,12 +15,6 @@ local GetItemInfo = C_Item.GetItemInfo
 local PickupContainerItem = C_Container.PickupContainerItem
 
 function mod:OnInitialize()
-	self:RegisterDatabase({
-		profile = {
-			onlyDestroyJunk = true,
-			items = {},
-		},
-	})
 	self:RegisterChatCommand('destroyonejunk', 'DestroyOne', true)
 	self:RegisterChatCommand('doj', 'DestroyOne', true)
 	self:Debug('Initialized')
@@ -95,76 +89,4 @@ function mod:DestroyItem(bag, slot)
 	end
 	self:Feedback("Destroyed", info.stackCount, link)
 	return true
-end
-
-function mod:GetOptions()
-	local function GetItemId(input)
-		if not input or input:trim() == "" then return end
-		local id = tonumber(input) or tonumber(input:match('item:(%d+)'))
-		if id then return id end
-		local _, link = GetItemInfo(input:trim())
-		return link and tonumber(link:match('item:(%d+)'))
-	end
-
-	local items = {}
-	local lastRemovedItem
-
-	return {
-		name = 'SellJunk',
-		type = 'group',
-		order = 100,
-		args = {
-			moreItems = {
-				name = 'Additional items to sell or to destroy',
-				type = 'group',
-				inline = true,
-				order = 100,
-				args = {
-					addItem = {
-						name = 'Add item',
-						desc = "Enter the name, link of id of an item to add it to the list of non-junk items to sell.",
-						type = 'input',
-						order = 110,
-						validate = function(_, value)
-							return GetItemId(value) and true or 'Invalid item'
-						end,
-						get = function() return lastRemovedItem end,
-						set = function(_, value)
-							lastRemovedItem                         = nil
-							self.db.profile.items[GetItemId(value)] = true
-						end
-					},
-					removeItem = {
-						name = 'Remove item',
-						desc = 'Select an item to remove it from the list of non-junk items to sell.',
-						type = 'select',
-						order = 120,
-						confirm = true,
-						confirmText = 'Do you really want to remove this item from the list ?',
-						values = function()
-							wipe(items)
-							for id in pairs(self.db.profile.items) do
-								items[id] = GetItemInfo(id)
-							end
-							return items
-						end,
-						get = function() end,
-						set = function(_, value)
-							lastRemovedItem = GetItemInfo(value)
-							self.db.profile.items[value] = nil
-						end,
-					},
-					onlyDestroyJunk = {
-						name = "Do not destroy items",
-						desc = "Check this to prevent destroying items of the list. These items will only be sold.",
-						type = 'toggle',
-						order = 130,
-						get = function() return self.db.profile.onlyDestroyJunk end,
-						set = function(_, value) self.db.profile.onlyDestroyJunk = value end,
-						disabled = function() return not next(self.db.profile.items) end,
-					},
-				},
-			},
-		}
-	}
 end
