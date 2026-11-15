@@ -1,0 +1,203 @@
+--[[
+BrainDead - when you don't want to think anymore (automated tasks).
+Copyright 2010-2026 Adirelle (adirelle@gmail.com)
+
+All rights reserved.
+]]
+
+local _, addon      = ...
+
+local ldb           = LibStub("LibDataBroker-1.1")
+
+local mod           = addon:NewModule('WheelCast', 'AceBucket-3.0')
+mod.uiName          = "Cast thing with mouse wheel"
+mod.states          = {}
+mod.orderedStates   = {}
+
+mod.playerRaceId    = select(3, UnitRace("player"))
+
+addon.WheelCast     = mod
+
+local DATAOBJ_TYPE  = mod.addonName
+
+local suspendEvents = { "PLAYER_LEAVING_WORLD", "UNIT_ENTERED_VEHICLE", "PET_BATTLE_OPENING_START",
+	"PLAYER_CONTROL_LOST", "PLAYER_DEAD" }
+local resumeEvents  = { "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD", "UNIT_EXITED_VEHICLE", "PET_BATTLE_OVER",
+	"PLAYER_CONTROL_GAINED", "PLAYER_ALIVE", "PLAYER_ALIVE" }
+
+function mod:OnInitialize()
+	self:RegisterDatabase({
+		profile = {
+			anchor = {
+				point = "BOTTOMRIGHT",
+				x = 0,
+				y = 0,
+				locked = false,
+			}
+		}
+	})
+	self:Debug("Initialized", self.db)
+end
+
+function mod:OnEnable()
+	local anchorDb = self.db.profile.anchor
+	self.anchor:SetPoint(anchorDb.point, anchorDb.x, anchorDb.y)
+	if not anchorDb.locked then
+		self.anchor:Show()
+	else
+		self.anchor:Hide()
+	end
+
+	self.suspended = true
+	self:TryResume("OnEnable")
+	self:Debug("Enabled")
+end
+
+function mod:OnDisable()
+	self.anchor:Hide()
+	self:Suspend("OnDisable")
+	self:Debug("Disabled")
+end
+
+local function onEvent(event, expected)
+	if type(event) == "table" then
+		for _, e in ipairs(event) do
+			if e == expected then
+				return true
+			end
+		end
+		return false
+	end
+	return event == expected
+end
+
+function mod:TryResume(event, ...)
+	if onEvent(event, "PLAYER_REGEN_DISABLED") or
+		onEvent(event, "PLAYER_LEAVING_WORLD") or
+		InCombatLockdown() or
+		UnitHasVehicleUI("player") or
+		UnitOnTaxi("player") or
+		UnitIsDeadOrGhost("player") or
+		C_PetBattles.IsInBattle()
+	then
+		return self:Suspend(event)
+	end
+
+	return self:Resume(event)
+end
+
+function mod:Resume(event)
+	if not self.suspended then return end
+	self.suspended = false
+
+	self:UnregisterAllEvents()
+	self:UnregisterAllBuckets()
+
+	for _, subMod in self:IterateModules() do
+		subMod:Enable()
+	end
+
+	self:RegisterEvent("PLAYER_REGEN_DISABLED", "Suspend")
+	self:RegisterBucketEvent(suspendEvents, 0.1, "Suspend")
+
+	self:Clean()
+
+	self:Debug("Resumed", event)
+end
+
+function mod:Suspend(event)
+	if self.suspended and event ~= "OnEnable" then return end
+	self.suspended = true
+
+	self:UnregisterAllEvents()
+	self:UnregisterAllBuckets()
+
+	for _, subMod in self:IterateModules() do
+		subMod:Disable()
+	end
+
+	self:RegisterBucketEvent(resumeEvents, 0.02, "TryResume")
+
+	self:Debug("suspended", event)
+end
+
+function mod:MarkDirty()
+	if self.dirty then return end
+	self.dirty = true
+	self:Clean()
+end
+
+local doClean = function() mod:DoClean() end
+
+function mod:Clean()
+	if self.suspended or not self.dirty then return end
+	C_Timer.After(0, doClean)
+end
+
+function mod:DoClean()
+	if self.suspended or not self.dirty then return end
+	self.dirty = false
+	self:Debug("DoClean")
+
+	table.sort(self.orderedStates, function(a, b)
+		return (a.priority or 0) > (b.priority or 0)
+	end)
+
+	local tooltip, button = self.tooltip, self.button
+
+	tooltip:ClearLines()
+	tooltip:Reanchor()
+	tooltip:AddLine(mod.name)
+
+	local actionable = false
+	button:SetManyAttributes("type", nil, "bag", nil, "slot", nil, "item", nil, "spell", nil, "macrotext", nil)
+
+	for _, state in pairs(self.orderedStates) do
+		if state.line then
+			tooltip:AddLine(state.line)
+			if not actionable and state.SetupButton then
+				state:SetupButton(button)
+				actionable = true
+				self:Debug("button set up for", state.line)
+			end
+		end
+	end
+
+	if tooltip:NumLines() > 1 then
+		tooltip:Show()
+	else
+		tooltip:Hide()
+	end
+
+	if actionable then
+		button:Show()
+	else
+		button:Hide()
+	end
+end
+
+function mod.IconLine(icon, text)
+	if icon then
+		return "|T" .. icon .. ":0:0:0:0:64:64:4:60:4:60|t " .. text
+	end
+	return text
+end
+
+----
+
+mod:SetDefaultModuleState(true)
+mod:SetDefaultModuleLibraries('AceEvent-3.0')
+mod:SetDefaultModulePrototype(addon.defaultModulePrototype)
+
+function mod:OnModuleCreated(subMod)
+	local name = subMod.name
+	local state = ldb:NewDataObject(name, {
+		type = DATAOBJ_TYPE,
+		SetupButton = function(_, ...) subMod:SetupButton(...) end
+	})
+	subMod.state = state
+	mod:Debug("Registered module", name, subMod)
+	ldb.RegisterCallback(self, "LibDataBroker_AttributeChanged_" .. name, "MarkDirty")
+	self.states[name] = state
+	tinsert(self.orderedStates, state)
+end
