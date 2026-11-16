@@ -15,6 +15,7 @@ mod.states          = {}
 mod.orderedStates   = {}
 
 mod.playerRaceId    = select(3, UnitRace("player"))
+mod.playerClass     = select(2, UnitClass("player"))
 
 addon.WheelCast     = mod
 
@@ -120,6 +121,7 @@ function mod:Suspend(event)
 
 	self.tooltip:Hide()
 	self.button:Hide()
+
 	self:Debug("suspended", event)
 end
 
