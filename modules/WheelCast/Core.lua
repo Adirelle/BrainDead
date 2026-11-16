@@ -100,7 +100,7 @@ function mod:Resume(event)
 	self:RegisterEvent("PLAYER_REGEN_DISABLED", "Suspend")
 	self:RegisterBucketEvent(suspendEvents, 0.1, "Suspend")
 
-	self:Clean()
+	self:MarkDirty()
 
 	self:Debug("Resumed", event)
 end
@@ -118,6 +118,8 @@ function mod:Suspend(event)
 
 	self:RegisterBucketEvent(resumeEvents, 0.02, "TryResume")
 
+	self.tooltip:Hide()
+	self.button:Hide()
 	self:Debug("suspended", event)
 end
 
