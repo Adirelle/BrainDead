@@ -30,4 +30,5 @@ modules\WheelCast\Core.Lua
 modules\WheelCast\Frames.lua
 modules\WheelCast\FindTreasure.lua
 modules\WheelCast\HunterPet.lua
+modules\WheelCast\Inventory.lua
 modules\WheelCast\MiniPet.lua
