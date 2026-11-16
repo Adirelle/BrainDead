@@ -31,5 +31,6 @@ function mod:Update()
 end
 
 function mod:SetupButton(button, ...)
-	return button:SetManyAttributes("type", "macro", "macrotext", "/randomfavoritepet")
+	return button:SetManyAttributes("type", "macro", "macrotext",
+		C_PetJournal.HasFavoritePets() and "/randomfavoritepet" or "/randompet")
 end
