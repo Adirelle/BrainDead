@@ -24,7 +24,7 @@ local DATAOBJ_TYPE  = mod.addonName
 local suspendEvents = { "PLAYER_LEAVING_WORLD", "UNIT_ENTERED_VEHICLE", "PET_BATTLE_OPENING_START",
 	"PLAYER_CONTROL_LOST", "PLAYER_DEAD" }
 local resumeEvents  = { "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD", "UNIT_EXITED_VEHICLE", "PET_BATTLE_OVER",
-	"PLAYER_CONTROL_GAINED", "PLAYER_ALIVE", "PLAYER_ALIVE" }
+	"PLAYER_CONTROL_GAINED", "PLAYER_ALIVE", "PLAYER_UNGHOST" }
 
 function mod:OnInitialize()
 	self:RegisterDatabase({
@@ -62,20 +62,15 @@ end
 
 local function onEvent(event, expected)
 	if type(event) == "table" then
-		for _, e in ipairs(event) do
-			if e == expected then
-				return true
-			end
-		end
-		return false
+		return tContains(event, expected)
 	end
 	return event == expected
 end
 
 function mod:TryResume(event, ...)
-	if onEvent(event, "PLAYER_REGEN_DISABLED") or
-		onEvent(event, "PLAYER_LEAVING_WORLD") or
-		InCombatLockdown() or
+	if InCombatLockdown() or
+		not IsPlayerInWorld() or
+		not HasFullControl() or
 		UnitHasVehicleUI("player") or
 		UnitOnTaxi("player") or
 		UnitIsDeadOrGhost("player") or
@@ -101,6 +96,10 @@ function mod:Resume(event)
 	self:RegisterEvent("PLAYER_REGEN_DISABLED", "Suspend")
 	self:RegisterBucketEvent(suspendEvents, 0.1, "Suspend")
 
+	if not anchorDb.locked then
+		self.anchor:Show()
+	end
+
 	self:MarkDirty()
 
 	self:Debug("Resumed", event)
@@ -119,6 +118,7 @@ function mod:Suspend(event)
 
 	self:RegisterBucketEvent(resumeEvents, 0.02, "TryResume")
 
+	self.anchor:Hide()
 	self.tooltip:Hide()
 	self.button:Hide()
 
