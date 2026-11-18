@@ -222,15 +222,15 @@ function mod:GetOptions()
 
 		local modOptions = mod.GetOptions and mod:GetOptions()
 		if modOptions then
-			options[name] = {
-				name = label,
-				type = "group",
-				args = modOptions,
-				order = 100,
-				hidden = function()
-					return not self.db.profile.modules[name]
-				end,
-			}
+			modOptions.name = label
+			modOptions.order = 100
+			if modOptions.type == "group" then
+				modOptions.inline = true
+			end
+			modOptions.hidden = function()
+				return not self.db.profile.modules[name]
+			end
+			options[name] = modOptions
 		end
 	end
 
@@ -252,7 +252,6 @@ function mod:GetOptions()
 			end
 		end,
 		values = modList,
-		width = "double",
 		order = 10,
 	}
 

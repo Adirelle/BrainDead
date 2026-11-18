@@ -36,6 +36,15 @@ for _, spells in pairs(aspects) do
 	end
 end
 
+function mod:OnInitialize()
+	self:RegisterDatabase({
+		profile = {
+			aspect = "hawk",
+		}
+	})
+	self:Debug("Initialized", self.db)
+end
+
 function mod:OnEnable()
 	self:RegisterEvent('SPELLS_CHANGED', "ScanSpellBook")
 	self:RegisterEvent('UNIT_AURA', "CheckPresence")
@@ -69,7 +78,7 @@ function mod:CheckPresence(event, unit)
 	if anyAspect then
 		self.state.line, self.state.id = nil, nil
 	else
-		local wants = self.aspects.hawk
+		local wants = self.aspects[self.db.profile.aspect]
 		if wants then
 			self.state.line, self.state.id = wants:IconLine(), wants:GetSpellID()
 		end
@@ -80,4 +89,28 @@ end
 function mod:SetupButton(button)
 	self:Debug("setup", self.state.id, self.state.line)
 	return button:SetManyAttributes("type", "spell", "spell", self.state.id)
+end
+
+function mod:GetOptions()
+	local choices = {}
+
+	return {
+		name = "Hunter aspect",
+		type = "select",
+		get = function() return self.db.profile.aspect end,
+		set = function(_, key, value)
+			self.db.profile.aspect = key
+			self:Debug("aspect selected", key, value)
+			if self:IsEnabled() then
+				self:CheckPresence("OnConfigchange", "player")
+			end
+		end,
+		values = function()
+			wipe(choices)
+			for key, spell in pairs(self.aspects) do
+				choices[key] = spell:IconLine()
+			end
+			return choices
+		end,
+	}
 end
