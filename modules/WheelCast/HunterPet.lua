@@ -13,21 +13,11 @@ if WheelCast.playerClass ~= "HUNTER" then
 	return
 end
 
-local mod             = WheelCast:NewModule('HunterPet')
-mod.priority          = 50
+local mod         = WheelCast:NewModule('HunterPet')
+mod.priority      = 50
 
-local CALL_SPELL_ID   = 883 -- https://www.wowhead.com/forever/spell=883
-local REVIVE_SPELL_ID = 982 -- https://www.wowhead.com/forever/spell=982
---
--- local CallSpell = Spell:CreateFromSpellID(883)
--- CallSpell:ContinueOnSpellLoad(function()
--- 	CallSpell.line = WheelCast.IconLine(CallSpell:GetSpellTexture(), CallSpell:GetSpellName())
--- end)
---
--- local RezSpell = Spell:CreateFromSpellID(982) -- https://www.wowhead.com/forever/spell=883
--- RezSpell:ContinueOnSpellLoad(function()
--- 	RezSpell.line = WheelCast.IconLine(RezSpell:GetSpellTexture(), RezSpell:GetSpellName())
--- end)
+local CallSpell   = WheelCast.GetSpell(883) -- https://www.wowhead.com/forever/spell=883
+local ReviveSpell = WheelCast.GetSpell(982) -- https://www.wowhead.com/forever/spell=982
 
 function mod:OnEnable()
 	self:RegisterEvent('COMPANION_UPDATE', "Update")
@@ -44,24 +34,20 @@ function mod:Update(_, unit)
 		return
 	end
 
-	local id
+	local spell
 	if UnitIsUnit('pet', 'vehicle') then
-		id = false
+		-- NOP
 	elseif not UnitExists("pet") then
-		id = CALL_SPELL_ID
+		spell = CallSpell
 	elseif UnitIsDeadOrGhost("pet") then
-		id = REVIVE_SPELL_ID
+		spell = ReviveSpell
 	end
 
-	if id then
-		local spell = C_Spell.GetSpellInfo(id)
-		if spell then
-			self.state.line, self.state.id = WheelCast.IconLine(spell.iconID, spell.name), id
-			return
-		end
+	if spell then
+		self.state.line, self.state.id = spell:IconLine(), spell:GetSpellID()
+	else
+		self.state.line, self.state.id = nil, nil
 	end
-
-	self.state.line, self.state.id = nil, nil
 end
 
 function mod:SetupButton(button)
