@@ -263,7 +263,14 @@ end
 
 mod:SetDefaultModuleState(true)
 mod:SetDefaultModuleLibraries('AceEvent-3.0')
-mod:SetDefaultModulePrototype(addon.defaultModulePrototype)
+mod:SetDefaultModulePrototype(setmetatable(
+	{
+		OnDisable = function(self)
+			self.state.line = nil
+		end,
+	},
+	{ __index = addon.defaultModulePrototype }
+))
 
 function mod:OnModuleCreated(subMod)
 	local name = subMod.name
