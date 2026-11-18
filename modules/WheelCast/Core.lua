@@ -185,8 +185,8 @@ end
 
 
 local function FindAuraPredicate(expected, ...)
-	local auraId = select(12, ...)
-	return auraId == expected
+	local auraID = select(12, ...)
+	return auraID == expected
 end
 
 local function FindAura(unitID, auraID, filter)
@@ -194,7 +194,18 @@ local function FindAura(unitID, auraID, filter)
 	return AuraUtil.FindAura(FindAuraPredicate, unitID, filter, auraID)
 end
 
-mod.IconLine, mod.GetSpell, mod.FindAura = IconLine, GetSpell, FindAura
+local function FindAnyAuraOfPredicate(expected, ...)
+	local auraId = select(12, ...)
+	return tContains(expected, auraId)
+end
+
+local function FindAnyAuraOf(unitID, auraIDs, filter)
+	assert(not InCombatLockdown(), "FindAnyAuraOf called in combat")
+	return AuraUtil.FindAura(FindAnyAuraOfPredicate, unitID, filter, auraIDs)
+end
+
+
+mod.IconLine, mod.GetSpell, mod.FindAura, mod.FindAnyAuraOf = IconLine, GetSpell, FindAura, FindAnyAuraOf
 
 ------------------------------------------------------------------------------------------------------------------------
 
