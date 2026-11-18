@@ -29,18 +29,23 @@ local AceConfigDialog = LibStub("AceConfigDialog-3.0")
 
 local SendChatMessage = C_ChatInfo.SendChatMessage
 
-local function AddOptionPanel(self, label, parent)
-	if not self.GetOptions then return end
-	local options
-	AceConfig:RegisterOptionsTable(self.name, function()
-		if not options then options = self:GetOptions() end
-		return options
-	end)
-	return AceConfigDialog:AddToBlizOptions(self.name, label, parent)
+local function AddOptionPanel(mod, label, parent)
+	local options = mod.GetOptions and mod:GetOptions()
+	if not options then return end
+
+	AceConfig:RegisterOptionsTable(mod.name, {
+		name = label,
+		type = 'group',
+		args = options
+	})
+
+	return AceConfigDialog:AddToBlizOptions(mod.name, label, parent)
 end
 
 -- To be replaced by an useful function in OnInitialize
 function OpenBrainDeadConfig() end
+
+local moduleList = {}
 
 function addon:OnInitialize()
 	self.db = LibStub('AceDB-3.0'):New('BraindDeadDB', DB_DEFAULTS, true)
@@ -53,7 +58,11 @@ function addon:OnInitialize()
 
 	-- Module options
 	for name, module in self:IterateModules() do
-		AddOptionPanel(module, module.uiName or name, addonName)
+		if not module.uiName then
+			module.uiName = UnCamelCase(name)
+		end
+		moduleList[name] = module.uiName
+		AddOptionPanel(module, module.uiName, addonName)
 	end
 
 	_G['SLASH_BRAINDEAD1'] = '/braindead'
@@ -67,52 +76,44 @@ function addon:OnEnable()
 end
 
 function addon:GetOptions()
-	local moduleList = {}
-	for name, module in self:IterateModules() do
-		moduleList[name] = module.uiName or name
-	end
-
 	return {
-		name = addonName,
-		type = 'group',
-		args = {
-			modules = {
-				name = 'Automatically ...',
-				type = 'multiselect',
-				get = function(_, name) return self.db.profile.modules[name] end,
-				set = function(_, name, enabled)
-					self.db.profile.modules[name] = enabled
-					local module = self:GetModule(name)
-					if self:IsEnabled() then
-						if enabled then
-							module:Enable()
-						else
-							module:Disable()
-						end
+		modules = {
+			name = 'Automatically ...',
+			type = 'multiselect',
+			get = function(_, name) return self.db.profile.modules[name] end,
+			set = function(_, name, enabled)
+				self.db.profile.modules[name] = enabled
+				local module = self:GetModule(name)
+				if self:IsEnabled() then
+					if enabled then
+						module:Enable()
 					else
-						module:SetEnabledState(enabled)
+						module:Disable()
 					end
-				end,
-				values = moduleList,
-				order = 10,
-			},
-			afkwarning = {
-				name = 'AFK warning',
-				desc = 'Warn people that summons/invites/ressurect you that you are AFK when ' ..
-					addonName .. ' confirms the action for you.',
-				type = 'toggle',
-				get = function() return self.db.profile.afkwarning end,
-				set = function(_, value) self.db.profile.afkwarning = value end,
-				order = 20,
-			},
-			feedback = {
-				name = 'Feedback',
-				desc = 'Display message in chat window when ' .. addonName .. ' automatically does something.',
-				type = 'toggle',
-				get = function() return self.db.profile.feedback end,
-				set = function(_, value) self.db.profile.feedback = value end,
-				order = 30,
-			},
+				else
+					module:SetEnabledState(enabled)
+				end
+			end,
+			values = moduleList,
+			width = "double",
+			order = 10,
+		},
+		afkwarning = {
+			name = 'AFK warning',
+			desc = 'Warn people that summons/invites/ressurect you that you are AFK when ' ..
+				addonName .. ' confirms the action for you.',
+			type = 'toggle',
+			get = function() return self.db.profile.afkwarning end,
+			set = function(_, value) self.db.profile.afkwarning = value end,
+			order = 20,
+		},
+		feedback = {
+			name = 'Feedback',
+			desc = 'Display message in chat window when ' .. addonName .. ' automatically does something.',
+			type = 'toggle',
+			get = function() return self.db.profile.feedback end,
+			set = function(_, value) self.db.profile.feedback = value end,
+			order = 30,
 		},
 	}
 end
@@ -142,13 +143,6 @@ function UnCamelCase(input)
 		addon:Debug("UnCamelCase", input, match, ...)
 		return match:sub(1, 1) .. " " .. match:sub(2):lower()
 	end)
-end
-
-function addon:OnModuleCreated(module)
-	if not module.uiName then
-		module.uiName = UnCamelCase(module.moduleName)
-	end
-	self:Debug("New module", module)
 end
 
 addon:SetDefaultModuleLibraries('AceEvent-3.0')
