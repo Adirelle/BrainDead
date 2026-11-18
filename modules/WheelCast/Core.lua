@@ -29,6 +29,7 @@ local resumeEvents  = { "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD", "UNIT_E
 function mod:OnInitialize()
 	self:RegisterDatabase({
 		profile = {
+			modules = { ["*"] = true },
 			anchor = {
 				point = "BOTTOMRIGHT",
 				x = 0,
@@ -82,8 +83,10 @@ function mod:Resume(event)
 	self:UnregisterAllEvents()
 	self:UnregisterAllBuckets()
 
-	for _, subMod in self:IterateModules() do
-		subMod:Enable()
+	for name, mod in self:IterateModules() do
+		if self.db.profile.modules[name] then
+			mod:Enable()
+		end
 	end
 
 	self:RegisterEvent("PLAYER_REGEN_DISABLED", "Suspend")
@@ -206,6 +209,55 @@ end
 
 
 mod.IconLine, mod.GetSpell, mod.FindAura, mod.FindAnyAuraOf = IconLine, GetSpell, FindAura, FindAnyAuraOf
+
+------------------------------------------------------------------------------------------------------------------------
+
+function mod:GetOptions()
+	local modList = {}
+	local options = {}
+
+	for name, mod in self:IterateModules() do
+		local label = mod.uiName or addon.UnCamelCase(name)
+		modList[name] = label
+
+		local modOptions = mod.GetOptions and mod:GetOptions()
+		if modOptions then
+			options[name] = {
+				name = label,
+				type = "group",
+				args = modOptions,
+				order = 100,
+				hidden = function()
+					return not self.db.profile.modules[name]
+				end,
+			}
+		end
+	end
+
+	options.modules = {
+		name = 'Modules',
+		type = 'multiselect',
+		get = function(_, name) return self.db.profile.modules[name] end,
+		set = function(_, name, enabled)
+			self.db.profile.modules[name] = enabled
+			local module = self:GetModule(name)
+			if self:IsEnabled() then
+				if enabled then
+					module:Enable()
+				else
+					module:Disable()
+				end
+			else
+				module:SetEnabledState(enabled)
+			end
+		end,
+		values = modList,
+		width = "double",
+		order = 10,
+	}
+
+	return options
+end
 
 ------------------------------------------------------------------------------------------------------------------------
 

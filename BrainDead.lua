@@ -29,8 +29,19 @@ local AceConfigDialog = LibStub("AceConfigDialog-3.0")
 
 local SendChatMessage = C_ChatInfo.SendChatMessage
 
+local function interspeceSpace(match)
+	return match:sub(1, 1) .. " " .. match:sub(2):lower()
+end
+
+local function UnCamelCase(input)
+	return input:gsub("%l%u", interspeceSpace)
+end
+
+addon.UnCamelCase = UnCamelCase
+
 local function AddOptionPanel(mod, label, parent)
 	local options = mod.GetOptions and mod:GetOptions()
+	mod:Debug("options for", mod.name, mod.GetOptions, options)
 	if not options then return end
 
 	AceConfig:RegisterOptionsTable(mod.name, {
@@ -136,13 +147,6 @@ function addon.AssertNotDND(self, ...)
 		return false
 	end
 	return true
-end
-
-function UnCamelCase(input)
-	return input:gsub("%l%u", function(match, ...)
-		addon:Debug("UnCamelCase", input, match, ...)
-		return match:sub(1, 1) .. " " .. match:sub(2):lower()
-	end)
 end
 
 addon:SetDefaultModuleLibraries('AceEvent-3.0')
