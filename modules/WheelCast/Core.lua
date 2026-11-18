@@ -60,13 +60,6 @@ function mod:OnDisable()
 	self:Debug("Disabled")
 end
 
-local function onEvent(event, expected)
-	if type(event) == "table" then
-		return tContains(event, expected)
-	end
-	return event == expected
-end
-
 function mod:TryResume(event, ...)
 	if InCombatLockdown() or
 		not IsPlayerInWorld() or
@@ -96,7 +89,7 @@ function mod:Resume(event)
 	self:RegisterEvent("PLAYER_REGEN_DISABLED", "Suspend")
 	self:RegisterBucketEvent(suspendEvents, 0.1, "Suspend")
 
-	if not anchorDb.locked then
+	if not self.db.profile.anchor.locked then
 		self.anchor:Show()
 	end
 
@@ -153,31 +146,22 @@ function mod:DoClean()
 	tooltip:Reanchor()
 	tooltip:AddLine(mod.name)
 
-	local actionable = false
+	local actionnable = false
 	button:SetManyAttributes("type", nil, "bag", nil, "slot", nil, "item", nil, "spell", nil, "macrotext", nil)
 
 	for _, state in pairs(self.orderedStates) do
 		if state.line then
 			tooltip:AddLine(state.line)
-			if not actionable and state.SetupButton then
+			if not actionnable and state.SetupButton then
 				state:SetupButton(button)
-				actionable = true
+				actionnable = true
 				self:Debug("button set up for", state.line)
 			end
 		end
 	end
 
-	if tooltip:NumLines() > 1 then
-		tooltip:Show()
-	else
-		tooltip:Hide()
-	end
-
-	if actionable then
-		button:Show()
-	else
-		button:Hide()
-	end
+	tooltip:SetShown(tooltip:NumLines() > 1)
+	button:SetShown(actionnable)
 end
 
 function mod.IconLine(icon, text)
