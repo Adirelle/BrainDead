@@ -164,14 +164,39 @@ function mod:DoClean()
 	button:SetShown(actionnable)
 end
 
-function mod.IconLine(icon, text)
+------------------------------------------------------------------------------------------------------------------------
+
+local function IconLine(icon, text)
 	if icon then
 		return "|T" .. icon .. ":0:0:0:0:64:64:4:60:4:60|t " .. text
 	end
 	return text
 end
 
-----
+local function Spell_IconLine(self)
+	return IconLine(self:GetSpellTexture(), self:GetSpellName())
+end
+
+local function GetSpell(spellID)
+	local spell = Spell:CreateFromSpellID(spellID)
+	spell.IconLine = Spell_IconLine
+	return spell
+end
+
+
+local function FindAuraPredicate(expected, ...)
+	local auraId = select(12, ...)
+	return auraId == expected
+end
+
+local function FindAura(unitID, auraID, filter)
+	assert(not InCombatLockdown(), "FindAura called in combat")
+	return AuraUtil.FindAura(FindAuraPredicate, unitID, filter, auraID)
+end
+
+mod.IconLine, mod.GetSpell, mod.FindAura = IconLine, GetSpell, FindAura
+
+------------------------------------------------------------------------------------------------------------------------
 
 mod:SetDefaultModuleState(true)
 mod:SetDefaultModuleLibraries('AceEvent-3.0')
