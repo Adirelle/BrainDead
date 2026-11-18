@@ -95,7 +95,7 @@ function mod:GetOptions()
 	local choices = {}
 
 	return {
-		name = "Hunter aspect",
+		name = "Default hunter aspect",
 		type = "select",
 		get = function() return self.db.profile.aspect end,
 		set = function(_, key, value)

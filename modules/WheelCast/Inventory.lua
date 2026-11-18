@@ -22,7 +22,7 @@ local STANDARD_BAG_FAMILY_ID = 0
 
 local function GetJunkInfo(bag, slot)
 	local info = C_Container.GetContainerItemInfo(bag, slot)
-	if not info or info.stackCount < 1 or info.isLocked or info.hasLoot or info.IsBound or info.quality > Enum.ItemQuality.Common then
+	if not info or (info.stackCount or 0) < 1 or info.isLocked or info.hasLoot or info.IsBound or (info.quality or 100) > Enum.ItemQuality.Common then
 		return
 	end
 	local itemEquipLoc, _, sellPrice, _, _, _, _, _, isCraftingReagent = select(9, C_Item.GetItemInfo(info.itemID))

@@ -33,3 +33,4 @@ modules\WheelCast\HunterAspects.lua
 modules\WheelCast\HunterPet.lua
 modules\WheelCast\Inventory.lua
 modules\WheelCast\MiniPet.lua
+modules\WheelCast\Tracking.lua
