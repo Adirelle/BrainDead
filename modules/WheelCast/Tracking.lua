@@ -5,28 +5,25 @@ Copyright 2010-2026 Adirelle (adirelle@gmail.com)
 All rights reserved.
 ]]
 
-local _, addon               = ...
+local _, addon  = ...
 
-local WheelCast              = addon.WheelCast
+local WheelCast = addon.WheelCast
 
-local FIND_TREASURE_SPELL_ID = 2481 -- https://www.wowhead.com/forever/spell=2481
-
-local mod                    = WheelCast:NewModule('Tracking')
-mod.priority                 = 50
+local mod       = WheelCast:NewModule('Tracking')
+mod.priority    = 50
+mod.SetupAction = mod.SetSpell
 
 function mod:OnInitialize()
 	self:RegisterDatabase()
-	self.trackings = {}
 	self:Debug("Initialized")
 end
 
 function mod:OnEnable()
 	self:RegisterEvent('MINIMAP_UPDATE_TRACKING', "Update")
-
-	self:Update("OnEnable")
-
 	self:Debug("Enabled")
 end
+
+local FIND_TREASURE_SPELL_ID = 2481 -- https://www.wowhead.com/forever/spell=2481
 
 local function trackingSpellIter(count, index)
 	index = index + 1
@@ -37,28 +34,21 @@ local function trackingSpellIter(count, index)
 	if not tracking.spellID or tracking.spellID == FIND_TREASURE_SPELL_ID then
 		return trackingSpellIter(count, index)
 	end
-	return index, tracking
+	return index, tracking, tracking.spellID
 end
 
 local function iterateTrackingSpells()
 	return trackingSpellIter, C_Minimap.GetNumTrackingTypes(), 0
 end
 
-function mod:Update(event)
-	self:Debug("Update", event)
-
-	for _, tracking in iterateTrackingSpells() do
+function mod:Test()
+	for _, tracking, spellID in iterateTrackingSpells() do
 		if tracking.active then
-			self.state.id, self.state.line = nil, nil
 			return
-		elseif tracking.spellID == self.db.profile.tracking then
-			self.state.id, self.state.line = tracking.spellID, WheelCast.IconLine(tracking.texture, tracking.name)
+		elseif spellID == self.db.profile.tracking then
+			return WheelCast.IconLine(tracking.texture, tracking.name), spellID
 		end
 	end
-end
-
-function mod:SetupButton(button)
-	return button:SetManyAttributes("type", "spell", "spell", self.state.id)
 end
 
 function mod:GetOptions()
@@ -70,10 +60,7 @@ function mod:GetOptions()
 		get = function() return self.db.profile.tracking end,
 		set = function(_, key, value)
 			self.db.profile.tracking = key
-			self:Debug("aspect selected", key, value)
-			if self:IsEnabled() then
-				self:Update("OnConfigchange")
-			end
+			self:Update("OnConfigChanged")
 		end,
 		values = function()
 			wipe(choices)

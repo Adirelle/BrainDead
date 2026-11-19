@@ -5,50 +5,56 @@ Copyright 2010-2026 Adirelle (adirelle@gmail.com)
 All rights reserved.
 ]]
 
-local _, addon      = ...
+local _, addon   = ...
 
-local ldb           = LibStub("LibDataBroker-1.1")
+local mod        = addon:NewModule('WheelCast')
+mod.uiName       = "Cast thing with mouse wheel"
 
-local mod           = addon:NewModule('WheelCast', 'AceBucket-3.0')
-mod.uiName          = "Cast thing with mouse wheel"
-mod.states          = {}
-mod.orderedStates   = {}
+mod.playerRaceId = select(3, UnitRace("player"))
+mod.playerClass  = select(2, UnitClass("player"))
 
-mod.playerRaceId    = select(3, UnitRace("player"))
-mod.playerClass     = select(2, UnitClass("player"))
+addon.WheelCast  = mod
 
-addon.WheelCast     = mod
-
-local DATAOBJ_TYPE  = mod.addonName
-
-local suspendEvents = { "PLAYER_LEAVING_WORLD", "UNIT_ENTERED_VEHICLE", "PET_BATTLE_OPENING_START",
-	"PLAYER_CONTROL_LOST", "PLAYER_DEAD" }
-local resumeEvents  = { "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD", "UNIT_EXITED_VEHICLE", "PET_BATTLE_OVER",
-	"PLAYER_CONTROL_GAINED", "PLAYER_ALIVE", "PLAYER_UNGHOST" }
+mod.moduleOrder  = {}
+mod.actions      = {}
+mod.labels       = {}
 
 function mod:OnInitialize()
 	self:RegisterDatabase({
 		profile = {
 			modules = { ["*"] = true },
-			anchor = {
-				point = "BOTTOMRIGHT",
-				x = 0,
-				y = 0,
-				locked = false,
-			}
+			anchor = { point = "CENTER", x = 0, y = 0, locked = false },
 		}
 	})
-	self:Debug("Initialized", self.db)
+
+	for name in self:IterateModules() do
+		tinsert(self.moduleOrder, name)
+	end
+	table.sort(self.moduleOrder, function(a, b)
+		return (self:GetModule(a).priority or 0) > (self:GetModule(b).priority or 0)
+	end)
+
+	self:Debug("Initialized", self.moduleOrder)
 end
 
 function mod:OnEnable()
-	local anchorDb = self.db.profile.anchor
+	self:RegisterEvent("PLAYER_REGEN_DISABLED", "Suspend")
+	self:RegisterEvent("PLAYER_LEAVING_WORLD", "Suspend")
+	self:RegisterEvent("UNIT_ENTERED_VEHICLE", "Suspend")
+	self:RegisterEvent("PET_BATTLE_OPENING_START", "Suspend")
+	self:RegisterEvent("PLAYER_CONTROL_LOST", "Suspend")
+	self:RegisterEvent("PLAYER_DEAD", "Suspend")
+
+	self:RegisterEvent("PLAYER_REGEN_ENABLED", "TryResume")
+	self:RegisterEvent("PLAYER_ENTERING_WORLD", "TryResume")
+	self:RegisterEvent("UNIT_EXITED_VEHICLE", "TryResume")
+	self:RegisterEvent("PET_BATTLE_OVER", "TryResume")
+	self:RegisterEvent("PLAYER_CONTROL_GAINED", "TryResume")
+	self:RegisterEvent("PLAYER_ALIVE", "TryResume")
+	self:RegisterEvent("PLAYER_UNGHOST", "TryResume")
+
+	local anchorDb = mod.db.profile.anchor
 	self.anchor:SetPoint(anchorDb.point, anchorDb.x, anchorDb.y)
-	if not anchorDb.locked then
-		self.anchor:Show()
-	else
-		self.anchor:Hide()
-	end
 
 	self.suspended = true
 	self:TryResume("OnEnable")
@@ -56,21 +62,21 @@ function mod:OnEnable()
 end
 
 function mod:OnDisable()
-	self.anchor:Hide()
 	self:Suspend("OnDisable")
 	self:Debug("Disabled")
 end
 
-function mod:TryResume(event, ...)
-	if InCombatLockdown() or
-		not IsPlayerInWorld() or
-		not HasFullControl() or
-		UnitHasVehicleUI("player") or
-		UnitOnTaxi("player") or
-		UnitIsDeadOrGhost("player") or
-		C_PetBattles.IsInBattle()
+function mod:TryResume(event)
+	if not self.suspended
+		or InCombatLockdown()
+		or not IsPlayerInWorld()
+		or not HasFullControl()
+		or UnitHasVehicleUI("player")
+		or UnitOnTaxi("player")
+		or UnitIsDeadOrGhost("player")
+		or C_PetBattles.IsInBattle()
 	then
-		return self:Suspend(event)
+		return
 	end
 
 	return self:Resume(event)
@@ -78,70 +84,42 @@ end
 
 function mod:Resume(event)
 	if not self.suspended then return end
-	self.suspended = false
 
-	self:UnregisterAllEvents()
-	self:UnregisterAllBuckets()
-
+	wipe(self.labels)
+	wipe(self.actions)
 	for name, mod in self:IterateModules() do
 		if self.db.profile.modules[name] then
 			mod:Enable()
+			mod:Update("OnResume")
 		end
 	end
 
-	self:RegisterEvent("PLAYER_REGEN_DISABLED", "Suspend")
-	self:RegisterBucketEvent(suspendEvents, 0.1, "Suspend")
+	self.anchor:SetShown(not self.db.profile.anchor.locked)
 
-	if not self.db.profile.anchor.locked then
-		self.anchor:Show()
-	end
-
-	self:MarkDirty()
+	self.suspended = false
+	self:Update("OnResume")
 
 	self:Debug("Resumed", event)
 end
 
 function mod:Suspend(event)
-	if self.suspended and event ~= "OnEnable" then return end
+	if self.suspended then return end
 	self.suspended = true
 
-	self:UnregisterAllEvents()
-	self:UnregisterAllBuckets()
-
-	for _, subMod in self:IterateModules() do
-		subMod:Disable()
-	end
-
-	self:RegisterBucketEvent(resumeEvents, 0.02, "TryResume")
-
-	self.anchor:Hide()
 	self.tooltip:Hide()
-	self.button:Hide()
+	self.anchor:Hide()
+
+	for _, mod in self:IterateModules() do
+		mod:Disable()
+	end
 
 	self:Debug("suspended", event)
 end
 
-function mod:MarkDirty()
-	if self.dirty then return end
-	self.dirty = true
-	self:Clean()
-end
-
-local doClean = function() mod:DoClean() end
-
-function mod:Clean()
+function mod:Update(event)
 	if self.suspended or not self.dirty then return end
-	C_Timer.After(0, doClean)
-end
 
-function mod:DoClean()
-	if self.suspended or not self.dirty then return end
-	self.dirty = false
-	self:Debug("DoClean")
-
-	table.sort(self.orderedStates, function(a, b)
-		return (a.priority or 0) > (b.priority or 0)
-	end)
+	self:Debug("Updating", event, self.labels, self.actions)
 
 	local tooltip, button = self.tooltip, self.button
 
@@ -149,22 +127,31 @@ function mod:DoClean()
 	tooltip:Reanchor()
 	tooltip:AddLine(mod.name)
 
-	local actionnable = false
-	button:SetManyAttributes("type", nil, "bag", nil, "slot", nil, "item", nil, "spell", nil, "macrotext", nil)
+	button:Clear()
 
-	for _, state in pairs(self.orderedStates) do
-		if state.line then
-			tooltip:AddLine(state.line)
-			if not actionnable and state.SetupButton then
-				state:SetupButton(button)
-				actionnable = true
-				self:Debug("button set up for", state.line)
+	local actionName
+	for _, name in ipairs(self.moduleOrder) do
+		if self.db.profile.modules[name] then
+			if self.labels[name] then
+				tooltip:AddLine(self.labels[name])
+			end
+			if not actionName and self.actions[name] then
+				actionName = name
 			end
 		end
 	end
 
 	tooltip:SetShown(tooltip:NumLines() > 1)
-	button:SetShown(actionnable)
+
+	if actionName then
+		self:GetModule(actionName):SetupAction(button, self.actions[actionName])
+		button:Show()
+	else
+		button:Hide()
+	end
+
+	self.dirty = false
+	self:Debug("Updated", event, "#labels:", tooltip:NumLines(), "action:", actionAme)
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -185,7 +172,6 @@ local function GetSpell(spellID)
 	spell.IconLine = Spell_IconLine
 	return spell
 end
-
 
 local function FindAuraPredicate(expected, ...)
 	local auraID = select(12, ...)
@@ -222,7 +208,9 @@ function mod:GetOptions()
 
 		local modOptions = mod.GetOptions and mod:GetOptions()
 		if modOptions then
-			modOptions.name = label
+			if not modOptions.name then
+				modOptions.name = label
+			end
 			modOptions.order = 100
 			if modOptions.type == "group" then
 				modOptions.inline = true
@@ -237,22 +225,35 @@ function mod:GetOptions()
 	options.modules = {
 		name = 'Modules',
 		type = 'multiselect',
+		order = 1,
 		get = function(_, name) return self.db.profile.modules[name] end,
 		set = function(_, name, enabled)
 			self.db.profile.modules[name] = enabled
-			local module = self:GetModule(name)
-			if self:IsEnabled() then
+			if self:IsEnabled() and not self.suspended then
+				local mod = self:GetModule(name)
 				if enabled then
-					module:Enable()
+					mod:Enable()
+					mod:Update("OnConfigChanged")
 				else
-					module:Disable()
+					mod:Disable()
+					self.labels[name], self.actions[name], self.dirty = nil, nil, true
+					self:Update("OnConfigChanged")
 				end
-			else
-				module:SetEnabledState(enabled)
 			end
 		end,
 		values = modList,
-		order = 10,
+	}
+
+	options.anchor = {
+		name = "Show anchor",
+		type = "toggle",
+		order = -1,
+		width = "full",
+		get = function() return not self.db.profile.anchor.locked end,
+		set = function(_, show)
+			self.db.profile.anchor.locked = not show
+			self.anchor:SetShown(not self.suspended and show)
+		end,
 	}
 
 	return options
@@ -260,26 +261,35 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 
-mod:SetDefaultModuleState(true)
+mod:SetDefaultModuleState(false)
 mod:SetDefaultModuleLibraries('AceEvent-3.0')
 mod:SetDefaultModulePrototype(setmetatable(
 	{
-		OnDisable = function(self)
-			self.state.line = nil
+		Test = function(self) error(self.name .. ":Test() is not implemented") end,
+		SetupAction = function(self) error(self.name .. ":SetupAction() is not implemented") end,
+
+		Update = function(self, event)
+			local key = self.moduleName
+			local label, action = self:Test()
+			label = label or nil
+			action = action or nil
+			if mod.labels[key] == label and mod.actions[key] == action then
+				self:Debug("NOT updated", event, "=>", label, action)
+				return
+			end
+			mod.labels[key], mod.actions[key], mod.dirty = label, action, true
+			self:Debug("Updated", event, "=>", label, action)
+			mod:Update(event)
 		end,
+
+		SetSpell = function(_, button, spellID) button:SetSpell(spellID) end,
+		SetMacroText = function(_, button, macrotext) button:SetMacroText(macrotext) end,
+
+		OnUnitEvent = function(self, event, unit)
+			if unit == self.unit then
+				self:Update(event)
+			end
+		end
 	},
 	{ __index = addon.defaultModulePrototype }
 ))
-
-function mod:OnModuleCreated(subMod)
-	local name = subMod.name
-	local state = ldb:NewDataObject(name, {
-		type = DATAOBJ_TYPE,
-		SetupButton = function(_, ...) subMod:SetupButton(...) end
-	})
-	subMod.state = state
-	mod:Debug("Registered module", name, subMod)
-	ldb.RegisterCallback(self, "LibDataBroker_AttributeChanged_" .. name, "MarkDirty")
-	self.states[name] = state
-	tinsert(self.orderedStates, state)
-end

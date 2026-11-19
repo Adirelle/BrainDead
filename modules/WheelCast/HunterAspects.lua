@@ -15,6 +15,9 @@ end
 
 local mod        = WheelCast:NewModule('HunterAspect')
 mod.priority     = 50
+mod.unit         = "player"
+mod.aspects      = {}
+mod.SetupAction  = mod.SetSpell
 
 -- from https://www.wowhead.com/forever/spells/abilities/hunter/name:aspect#0+2+4+22
 local aspects    = {
@@ -42,15 +45,13 @@ function mod:OnInitialize()
 			aspect = "hawk",
 		}
 	})
-	self:Debug("Initialized", self.db)
+	self:Debug("Initialized")
 end
 
 function mod:OnEnable()
 	self:RegisterEvent('SPELLS_CHANGED', "ScanSpellBook")
-	self:RegisterEvent('UNIT_AURA', "CheckPresence")
-
+	self:RegisterEvent('UNIT_AURA', "OnUnitEvent")
 	self:ScanSpellBook("OnEnable")
-
 	self:Debug("Enabled")
 end
 
@@ -62,33 +63,23 @@ local function findHighestKnown(spells)
 	end
 end
 
-mod.aspects = {}
-
 function mod:ScanSpellBook(event)
 	for aspect, spells in pairs(aspects) do
 		self.aspects[aspect] = findHighestKnown(spells)
 	end
-	self:Debug("ScanSpellbook", event, self.aspects)
-	self:CheckPresence("OnEnable")
+	return self:Update(event)
 end
 
-function mod:CheckPresence(event, unit)
-	if event ~= "OnEnable" and unit ~= "player" or not next(self.aspects) then return end
+function mod:Test()
+	if not next(self.aspects) then return end
+
 	local anyAspect = WheelCast.FindAnyAuraOf("player", allAspects, "HELPFUL|PLAYER")
-	if anyAspect then
-		self.state.line, self.state.id = nil, nil
-	else
-		local wants = self.aspects[self.db.profile.aspect]
-		if wants then
-			self.state.line, self.state.id = wants:IconLine(), wants:GetSpellID()
-		end
-	end
-	self:Debug("CheckPresence", event, anyAspect)
-end
+	if anyAspect then return end
 
-function mod:SetupButton(button)
-	self:Debug("setup", self.state.id, self.state.line)
-	return button:SetManyAttributes("type", "spell", "spell", self.state.id)
+	local wants = self.aspects[self.db.profile.aspect]
+	if wants then
+		return wants:IconLine(), wants:GetSpellID()
+	end
 end
 
 function mod:GetOptions()
@@ -98,12 +89,9 @@ function mod:GetOptions()
 		name = "Default hunter aspect",
 		type = "select",
 		get = function() return self.db.profile.aspect end,
-		set = function(_, key, value)
-			self.db.profile.aspect = key
-			self:Debug("aspect selected", key, value)
-			if self:IsEnabled() then
-				self:CheckPresence("OnConfigchange", "player")
-			end
+		set = function(_, _, value)
+			self.db.profile.aspect = value
+			self:Update("OnConfigChanged")
 		end,
 		values = function()
 			wipe(choices)

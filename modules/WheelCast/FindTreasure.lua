@@ -15,22 +15,25 @@ end
 
 local mod               = WheelCast:NewModule('TrackTreasure')
 mod.priority            = 30
+mod.unit                = "player"
+mod.SetupAction         = mod.SetSpell
 
 local SPELL_ID          = 2481 -- https://www.wowhead.com/forever/spell=2481
 local FindTreasureSpell = WheelCast.GetSpell(SPELL_ID)
 
 function mod:OnEnable()
-	self:RegisterEvent('UNIT_AURA', "Update")
-	self:Update("OnEnable")
+	self:RegisterEvent("UNIT_AURA", "OnUnitEvent")
 	self:Debug("Enabled")
 end
 
-function mod:Update(event, unit)
-	if event ~= "OnEnable" and unit ~= "player" then return end
-	self.state.line = not WheelCast.FindAura("player", SPELL_ID, "HELPFUL|PLAYER") and FindTreasureSpell:IconLine()
-	self:Debug("Updated")
+function mod:UNIT_AURA(_, unit)
+	if unit == "PLAYER" then
+		self:MarkDirty()
+	end
 end
 
-function mod:SetupButton(button)
-	return button:SetManyAttributes("type", "spell", "spell", SPELL_ID)
+function mod:Test()
+	if not WheelCast.FindAura("player", SPELL_ID, "HELPFUL|PLAYER") then
+		return FindTreasureSpell:IconLine(), SPELL_ID
+	end
 end

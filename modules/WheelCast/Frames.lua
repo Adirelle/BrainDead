@@ -31,17 +31,16 @@ anchor:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
 local text = anchor:CreateFontString(nil, nil, "GameFontNormalSmall")
 text:SetPoint("CENTER")
 text:SetText("WheelCast Anchor")
+text:SetTextColor(1, 1, 1)
 anchor:SetWidth(text:GetStringWidth() + 8)
 
 anchor:SetMovable(true)
-anchor:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+anchor:RegisterForClicks("RightButtonUp")
 anchor:RegisterForDrag("LeftButton")
 
 anchor:SetScript("OnClick", function(self, btn)
-	if btn == "RightButton" then
-		mod.db.profile.anchor.locked = true
-		self:Hide()
-	end
+	mod.db.profile.anchor.locked = true
+	self:Hide()
 end)
 
 anchor:SetScript("OnDragStart", anchor.StartMoving)
@@ -51,6 +50,12 @@ anchor:SetScript("OnDragStop", function(self)
 	local anchorDb = mod.db.profile.anchor
 	anchorDb.point, anchorDb.x, anchorDb.y = "BOTTOMLEFT", self:GetLeft(), self:GetBottom()
 end)
+
+anchor:SetScript("OnShow", function()
+	tooltip:Reanchor()
+end)
+
+anchor:SetScript("OnHide", anchor.StopMovingOrSizing)
 
 ----
 
@@ -76,9 +81,21 @@ end
 ----
 
 local buttonName = mod.name .. "Button"
-button = CreateFrame("Button", buttonName, UIParent, "SecureActionButtonTemplate")
+button = CreateFrame("Button", buttonName, tooltip, "SecureActionButtonTemplate")
 button:RegisterForClicks("AnyDown", "AnyUp")
+button:SetAllPoints(tooltip)
 button:Hide()
+
+button:SetScript("OnDragStart", function()
+	tooltip:StartMoving()
+end)
+
+button:SetScript("OnDragStop", function()
+	tooltip:StopMovingOrSizing()
+	local db = mod.db.profile.anchor
+	db.x, db.y = tooltip:GetLeft(), tooltip:GetBottom()
+	tooltip:Reanchor()
+end)
 
 function button:SetManyAttributes(...)
 	for i = 1, select("#", ...), 2 do
@@ -86,6 +103,19 @@ function button:SetManyAttributes(...)
 		self:SetAttribute(att, val)
 	end
 	return true
+end
+
+function button:SetSpell(spellID, unit)
+	self:SetManyAttributes("type", "spell", "spell", spellID, "unit", unit)
+end
+
+function button:SetMacroText(macrotext)
+	self:SetManyAttributes("type", "macro", "macrotext", macrotext)
+end
+
+function button:Clear()
+	self:SetManyAttributes("type", nil, "unit", nil, "bag", nil, "slot", nil, "item", nil, "spell", nil, "macrotext",
+		nil)
 end
 
 button:SetScript("OnShow", function(self)

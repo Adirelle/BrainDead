@@ -11,26 +11,17 @@ local WheelCast = addon.WheelCast
 
 local mod       = WheelCast:NewModule('MiniPet')
 mod.priority    = 10
+mod.SetupAction = mod.SetMacrotext
 
 local ICON_LINE = WheelCast.IconLine("Interface\\Icons\\INV_Box_PetCarrier_01", 'Minipet')
 
-function mod:OnEnable(event)
+function mod:OnEnable()
 	self:RegisterEvent('COMPANION_UPDATE', "Update")
-	self:Update()
 	self:Debug("Enabled")
 end
 
-function mod:Update()
-	local hasMiniPet = C_PetJournal.GetSummonedPetGUID()
-	if hasMiniPet then
-		self.state.line = nil
-	else
-		self.state.line = ICON_LINE
+function mod:Test()
+	if not C_PetJournal.GetSummonedPetGUID() then
+		return ICON_LINE, C_PetJournal.HasFavoritePets() and "/randomfavoritepet" or "/randompet"
 	end
-	self:Debug("Update", hasMiniPet)
-end
-
-function mod:SetupButton(button, ...)
-	return button:SetManyAttributes("type", "macro", "macrotext",
-		C_PetJournal.HasFavoritePets() and "/randomfavoritepet" or "/randompet")
 end
