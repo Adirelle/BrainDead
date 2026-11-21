@@ -14,11 +14,11 @@ libs/CallbackHandler-1.0.lua
 
 BrainDead.lua
 
-modules\AcceptInvitation.lua
-modules\AcceptResurrection.lua
-modules\AcceptSummon.lua
-modules\PVPRelease.lua
 modules\Plates.lua
+# modules\AcceptInvitation.lua
+# modules\AcceptResurrection.lua
+# modules\AcceptSummon.lua
+# modules\PVPRelease.lua
 modules\QuestWatch.lua
 modules\QuietFishing.lua
 modules\Repair.lua
