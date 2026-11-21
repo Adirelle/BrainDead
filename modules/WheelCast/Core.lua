@@ -7,6 +7,8 @@ All rights reserved.
 
 local _, addon   = ...
 
+local ae         = LibStub("AceEvent-3.0")
+
 local mod        = addon:NewModule('WheelCast')
 mod.uiName       = "Cast thing with mouse wheel"
 
@@ -38,37 +40,7 @@ function mod:OnInitialize()
 end
 
 function mod:OnEnable()
-	self:RegisterEvent("PLAYER_REGEN_DISABLED", "Suspend")
-	self:RegisterEvent("PLAYER_LEAVING_WORLD", "Suspend")
-	self:RegisterEvent("UNIT_ENTERED_VEHICLE", "Suspend")
-	self:RegisterEvent("PET_BATTLE_OPENING_START", "Suspend")
-	self:RegisterEvent("PLAYER_CONTROL_LOST", "Suspend")
-	self:RegisterEvent("PLAYER_DEAD", "Suspend")
-
-	self:RegisterEvent("PLAYER_REGEN_ENABLED", "TryResume")
-	self:RegisterEvent("PLAYER_ENTERING_WORLD", "TryResume")
-	self:RegisterEvent("UNIT_EXITED_VEHICLE", "TryResume")
-	self:RegisterEvent("PET_BATTLE_OVER", "TryResume")
-	self:RegisterEvent("PLAYER_CONTROL_GAINED", "TryResume")
-	self:RegisterEvent("PLAYER_ALIVE", "TryResume")
-	self:RegisterEvent("PLAYER_UNGHOST", "TryResume")
-
-	local anchorDb = mod.db.profile.anchor
-	self.anchor:SetPoint(anchorDb.point, anchorDb.x, anchorDb.y)
-
-	self.suspended = true
-	self:TryResume("OnEnable")
-	self:Debug("Enabled")
-end
-
-function mod:OnDisable()
-	self:Suspend("OnDisable")
-	self:Debug("Disabled")
-end
-
-function mod:TryResume(event)
-	if not self.suspended
-		or InCombatLockdown()
+	if InCombatLockdown()
 		or not IsPlayerInWorld()
 		or not HasFullControl()
 		or UnitHasVehicleUI("player")
@@ -76,48 +48,58 @@ function mod:TryResume(event)
 		or UnitIsDeadOrGhost("player")
 		or C_PetBattles.IsInBattle()
 	then
-		return
+		return self:Disable()
 	end
 
-	return self:Resume(event)
-end
+	ae.UnregisterAllEvents(self.name)
 
-function mod:Resume(event)
-	if not self.suspended then return end
+	self:RegisterEvent("PLAYER_REGEN_DISABLED", "Disable")
+	self:RegisterEvent("PLAYER_LEAVING_WORLD", "Disable")
+	self:RegisterEvent("UNIT_ENTERED_VEHICLE", "Disable")
+	self:RegisterEvent("PET_BATTLE_OPENING_START", "Disable")
+	self:RegisterEvent("PLAYER_CONTROL_LOST", "Disable")
+	self:RegisterEvent("PLAYER_DEAD", "Disable")
+
+	local anchorDb = mod.db.profile.anchor
+	self.anchor:SetPoint(anchorDb.point, anchorDb.x, anchorDb.y)
+	self.anchor:SetShown(not anchorDb.locked)
 
 	wipe(self.labels)
 	wipe(self.actions)
+	self.hold = true
+
 	for name, mod in self:IterateModules() do
 		if self.db.profile.modules[name] then
 			mod:Enable()
-			mod:Update("OnResume")
+			mod:Update("OnEnable")
 		end
 	end
 
-	self.anchor:SetShown(not self.db.profile.anchor.locked)
+	self.hold = false
+	self:Update("OnEnable")
 
-	self.suspended = false
-	self:Update("OnResume")
-
-	self:Debug("Resumed", event)
+	self:Debug("Enabled")
 end
 
-function mod:Suspend(event)
-	if self.suspended then return end
-	self.suspended = true
+function mod:OnDisable()
+	if self:IsModuleActive() then
+		ae.RegisterEvent(self.name, "PLAYER_REGEN_ENABLED", self.Enable, self)
+		ae.RegisterEvent(self.name, "PLAYER_ENTERING_WORLD", self.Enable, self)
+		ae.RegisterEvent(self.name, "UNIT_EXITED_VEHICLE", self.Enable, self)
+		ae.RegisterEvent(self.name, "PET_BATTLE_OVER", self.Enable, self)
+		ae.RegisterEvent(self.name, "PLAYER_CONTROL_GAINED", self.Enable, self)
+		ae.RegisterEvent(self.name, "PLAYER_ALIVE", self.Enable, self)
+		ae.RegisterEvent(self.name, "PLAYER_UNGHOST", self.Enable, self)
+	end
 
 	self.tooltip:Hide()
 	self.anchor:Hide()
 
-	for _, mod in self:IterateModules() do
-		mod:Disable()
-	end
-
-	self:Debug("suspended", event)
+	self:Debug("Disabled")
 end
 
 function mod:Update(event)
-	if self.suspended or not self.dirty then return end
+	if self.hold or not self.dirty then return end
 
 	self:Debug("Updating", event, self.labels, self.actions)
 
@@ -125,33 +107,36 @@ function mod:Update(event)
 
 	tooltip:ClearLines()
 	tooltip:Reanchor()
-	tooltip:AddLine(mod.name)
+	tooltip:AddLine("Chores")
 
 	button:Clear()
 
-	local actionName
+	local hasAction
 	for _, name in ipairs(self.moduleOrder) do
 		if self.db.profile.modules[name] then
 			if self.labels[name] then
 				tooltip:AddLine(self.labels[name])
 			end
-			if not actionName and self.actions[name] then
-				actionName = name
+			if not hasAction and self.actions[name] then
+				hasAction = self:GetModule(name):SetupAction(button, self.actions[name])
 			end
 		end
 	end
 
 	tooltip:SetShown(tooltip:NumLines() > 1)
-
-	if actionName then
-		self:GetModule(actionName):SetupAction(button, self.actions[actionName])
-		button:Show()
-	else
-		button:Hide()
-	end
+	button:SetShown(hasAction)
 
 	self.dirty = false
-	self:Debug("Updated", event, "#labels:", tooltip:NumLines(), "action:", actionAme)
+	self:Debug("Updated", event, "#labels:", tooltip:NumLines(), "action:", hasAction)
+end
+
+function mod:Set(name, label, action)
+	if self.labels[name] == label and self.actions[name] == action then
+		return false
+	end
+	self.labels[name], self.actions[name], self.dirty = label, action, true
+	self:Update("Set_" .. name)
+	return true
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -229,7 +214,7 @@ function mod:GetOptions()
 		get = function(_, name) return self.db.profile.modules[name] end,
 		set = function(_, name, enabled)
 			self.db.profile.modules[name] = enabled
-			if self:IsEnabled() and not self.suspended then
+			if self:IsEnabled() then
 				local mod = self:GetModule(name)
 				if enabled then
 					mod:Enable()
@@ -252,7 +237,7 @@ function mod:GetOptions()
 		get = function() return not self.db.profile.anchor.locked end,
 		set = function(_, show)
 			self.db.profile.anchor.locked = not show
-			self.anchor:SetShown(not self.suspended and show)
+			self.anchor:SetShown(not self:IsEnabled() and show)
 		end,
 	}
 
@@ -268,22 +253,19 @@ mod:SetDefaultModulePrototype(setmetatable(
 		Test = function(self) error(self.name .. ":Test() is not implemented") end,
 		SetupAction = function(self) error(self.name .. ":SetupAction() is not implemented") end,
 
-		Update = function(self, event)
-			local key = self.moduleName
+		Update = function(self)
 			local label, action = self:Test()
-			label = label or nil
-			action = action or nil
-			if mod.labels[key] == label and mod.actions[key] == action then
-				self:Debug("NOT updated", event, "=>", label, action)
-				return
-			end
-			mod.labels[key], mod.actions[key], mod.dirty = label, action, true
-			self:Debug("Updated", event, "=>", label, action)
-			mod:Update(event)
+			return mod:Set(self.moduleName, label or nil, action or nil)
 		end,
 
-		SetSpell = function(_, button, spellID) button:SetSpell(spellID) end,
-		SetMacroText = function(_, button, macrotext) button:SetMacroText(macrotext) end,
+		SetSpell = function(_, button, spellID)
+			button:SetSpell(spellID)
+			return true
+		end,
+		SetMacrotext = function(_, button, macrotext)
+			button:SetMacroText(macrotext)
+			return true
+		end,
 
 		OnUnitEvent = function(self, event, unit)
 			if unit == self.unit then

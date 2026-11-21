@@ -30,7 +30,7 @@ anchor:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
 
 local text = anchor:CreateFontString(nil, nil, "GameFontNormalSmall")
 text:SetPoint("CENTER")
-text:SetText("WheelCast Anchor")
+text:SetText("Chores")
 text:SetTextColor(1, 1, 1)
 anchor:SetWidth(text:GetStringWidth() + 8)
 

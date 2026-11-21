@@ -44,11 +44,16 @@ local function AddOptionPanel(mod, label, parent)
 	mod:Debug("options for", mod.name, mod.GetOptions, options)
 	if not options then return end
 
-	AceConfig:RegisterOptionsTable(mod.name, {
+	local group = {
 		name = label,
 		type = 'group',
-		args = options
-	})
+		args = options,
+	}
+	if mod.moduleName then
+		group.disabled = function() return not addon.db.profile.modules[mod.moduleName] end
+	end
+
+	AceConfig:RegisterOptionsTable(mod.name, group)
 
 	return AceConfigDialog:AddToBlizOptions(mod.name, label, parent)
 end
@@ -162,5 +167,8 @@ addon:SetDefaultModulePrototype({
 	RegisterDatabase = function(self, ...)
 		self.db = addon.db:RegisterNamespace(self.moduleName, ...)
 		return self.db
+	end,
+	IsModuleActive = function(self)
+		return addon.db.profile.modules[self.moduleName]
 	end,
 })
