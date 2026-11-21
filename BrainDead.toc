@@ -5,7 +5,7 @@
 ## Author: Adirelle
 ## Version: @project-version@
 ## SavedVariables: BraindDeadDB
-## OptionalDeps: Ace3, AdiDebug
+## OptionalDeps: Ace3, AdiDebug, Scrap
 ## IconTexture: Interface\Icons\achievement_character_undead_male
 ## AddonCompartmentFunc: OpenBrainDeadConfig
 
@@ -30,6 +30,6 @@ modules\WheelCast\Frames.lua
 modules\WheelCast\FindTreasure.lua
 modules\WheelCast\HunterAspects.lua
 modules\WheelCast\HunterPet.lua
-modules\WheelCast\Inventory.lua
+modules\WheelCast\AutoScrap.lua
 modules\WheelCast\MiniPet.lua
 modules\WheelCast\Tracking.lua
