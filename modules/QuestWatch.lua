@@ -5,8 +5,6 @@ Copyright 2010-2026 Adirelle (adirelle@gmail.com)
 All rights reserved.
 ]]
 
-if _G.Questie then return end
-
 local _, addon = ...
 
 local mod = addon:NewModule('QuestWatch', "AceBucket-3.0", "AceHook-3.0")
