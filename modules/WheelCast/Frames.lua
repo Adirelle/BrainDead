@@ -86,6 +86,16 @@ button:RegisterForClicks("AnyDown", "AnyUp")
 button:SetAllPoints(tooltip)
 button:Hide()
 
+button:SetScript("PreClick", function(self)
+	if InCombatLockdown() then return end
+	mod:SetupAction(self)
+end)
+
+button:SetScript("PostClick", function(self)
+	if InCombatLockdown() then return end
+	self:Clear()
+end)
+
 button:SetScript("OnDragStart", function()
 	tooltip:StartMoving()
 end)

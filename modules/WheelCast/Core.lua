@@ -98,6 +98,20 @@ function mod:OnDisable()
 	self:Debug("Disabled")
 end
 
+local function activeModuleIter(names, index)
+	index = index + 1
+	local name = names[index]
+	if not name then return end
+	if not mod.db.profile.modules[name] then
+		return activeModuleIter(names, index)
+	end
+	return index, name
+end
+
+function mod:IterateActiveModules()
+	return activeModuleIter, self.moduleOrder, 0
+end
+
 function mod:Update(event)
 	if self.hold or not self.dirty then return end
 
@@ -112,15 +126,11 @@ function mod:Update(event)
 	button:Clear()
 
 	local hasAction
-	for _, name in ipairs(self.moduleOrder) do
-		if self.db.profile.modules[name] then
-			if self.labels[name] then
-				tooltip:AddLine(self.labels[name])
-			end
-			if not hasAction and self.actions[name] then
-				hasAction = self:GetModule(name):SetupAction(button, self.actions[name])
-			end
+	for _, name in self:IterateActiveModules() do
+		if self.labels[name] then
+			tooltip:AddLine(self.labels[name])
 		end
+		hasAction = hasAction or self.actions[name] ~= nil
 	end
 
 	tooltip:SetShown(tooltip:NumLines() > 1)
@@ -128,6 +138,14 @@ function mod:Update(event)
 
 	self.dirty = false
 	self:Debug("Updated", event, "#labels:", tooltip:NumLines(), "action:", hasAction)
+end
+
+function mod:SetupAction(button)
+	for _, name in self:IterateActiveModules() do
+		if self.actions[name] and self:GetModule(name):SetupAction(button, self.actions[name]) then
+			return
+		end
+	end
 end
 
 function mod:Set(name, label, action)
