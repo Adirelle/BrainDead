@@ -9,31 +9,9 @@ local _, addon  = ...
 
 local WheelCast = addon.WheelCast
 
-if WheelCast.playerRaceId ~= 3 then
-	return -- not a dwarf
+if WheelCast.playerRace ~= "Dwarf" then
+	return
 end
 
-local mod               = WheelCast:NewModule('TrackTreasure')
-mod.priority            = 30
-mod.unit                = "player"
-mod.SetupAction         = mod.SetSpell
-
-local SPELL_ID          = 2481 -- https://www.wowhead.com/forever/spell=2481
-local FindTreasureSpell = WheelCast.GetSpell(SPELL_ID)
-
-function mod:OnEnable()
-	self:RegisterEvent("UNIT_AURA", "OnUnitEvent")
-	self:Debug("Enabled")
-end
-
-function mod:UNIT_AURA(_, unit)
-	if unit == "PLAYER" then
-		self:MarkDirty()
-	end
-end
-
-function mod:Test()
-	if not WheelCast.FindAura("player", SPELL_ID, "HELPFUL|PLAYER") then
-		return FindTreasureSpell:IconLine(), SPELL_ID
-	end
-end
+local mod = WheelCast:NewSelfBuffModule('TrackTreasure', 2481)
+mod.priority = 30

@@ -5,21 +5,21 @@ Copyright 2010-2026 Adirelle (adirelle@gmail.com)
 All rights reserved.
 ]]
 
-local _, addon   = ...
+local _, addon  = ...
 
-local ae         = LibStub("AceEvent-3.0")
+local ae        = LibStub("AceEvent-3.0")
 
-local mod        = addon:NewModule('WheelCast')
-mod.uiName       = "Cast thing with mouse wheel"
+local mod       = addon:NewModule('WheelCast')
+mod.uiName      = "Cast thing with mouse wheel"
 
-mod.playerRaceId = select(3, UnitRace("player"))
-mod.playerClass  = select(2, UnitClass("player"))
+mod.playerRace  = select(2, UnitRace("player"))
+mod.playerClass = select(2, UnitClass("player"))
 
-addon.WheelCast  = mod
+addon.WheelCast = mod
 
-mod.moduleOrder  = {}
-mod.actions      = {}
-mod.labels       = {}
+mod.moduleOrder = {}
+mod.actions     = {}
+mod.labels      = {}
 
 function mod:OnInitialize()
 	self:RegisterDatabase({
@@ -141,7 +141,7 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 
-local function IconLine(icon, text)
+function mod.IconLine(icon, text)
 	if icon then
 		return "|T" .. icon .. ":0:0:0:0:64:64:4:60:4:60|t " .. text
 	end
@@ -149,13 +149,22 @@ local function IconLine(icon, text)
 end
 
 local function Spell_IconLine(self)
-	return IconLine(self:GetSpellTexture(), self:GetSpellName())
+	return mod.IconLine(self:GetSpellTexture(), self:GetSpellName())
 end
 
-local function GetSpell(spellID)
+function mod.GetSpell(spellID)
 	local spell = Spell:CreateFromSpellID(spellID)
 	spell.IconLine = Spell_IconLine
 	return spell
+end
+
+function mod.HighestKnownRank(spells)
+	for rank = #spells, 1, -1 do
+		if C_SpellBook.IsSpellKnown(spells[rank]:GetSpellID()) then
+			mod:Debug("HighestKnownRank", spells[rank]:GetSpellName(), rank, spells[rank]:GetSpellID())
+			return spells[rank]
+		end
+	end
 end
 
 local function FindAuraPredicate(expected, ...)
@@ -163,7 +172,7 @@ local function FindAuraPredicate(expected, ...)
 	return auraID == expected
 end
 
-local function FindAura(unitID, auraID, filter)
+function mod.FindAura(unitID, auraID, filter)
 	assert(not InCombatLockdown(), "FindAura called in combat")
 	return AuraUtil.FindAura(FindAuraPredicate, unitID, filter, auraID)
 end
@@ -173,13 +182,10 @@ local function FindAnyAuraOfPredicate(expected, ...)
 	return tContains(expected, auraId)
 end
 
-local function FindAnyAuraOf(unitID, auraIDs, filter)
+function mod.FindAnyAuraOf(unitID, auraIDs, filter)
 	assert(not InCombatLockdown(), "FindAnyAuraOf called in combat")
 	return AuraUtil.FindAura(FindAnyAuraOfPredicate, unitID, filter, auraIDs)
 end
-
-
-mod.IconLine, mod.GetSpell, mod.FindAura, mod.FindAnyAuraOf = IconLine, GetSpell, FindAura, FindAnyAuraOf
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -275,3 +281,38 @@ mod:SetDefaultModulePrototype(setmetatable(
 	},
 	{ __index = addon.defaultModulePrototype }
 ))
+
+------------------------------------------------------------------------------------------------------------------------
+
+function mod:NewSelfBuffModule(name, ...)
+	local subMod       = self:NewModule(name)
+	subMod.priority    = 50
+	subMod.unit        = "player"
+	subMod.SetupAction = subMod.SetSpell
+
+	local spells       = {}
+	for i = 1, select('#', ...) do
+		tinsert(spells, mod.GetSpell(select(i, ...)))
+	end
+
+	function subMod:OnEnable()
+		self:RegisterEvent('UNIT_AURA', "OnUnitEvent")
+		self:RegisterEvent('SPELLS_CHANGED', "Update")
+
+		self:Debug("Enabled")
+	end
+
+	function subMod:Test()
+		for rank = #spells, 1, -1 do
+			local spellID = spells[rank]:GetSpellID()
+			if mod.FindAura("player", spellID, "HELPFUL") then
+				return
+			end
+			if C_SpellBook.IsSpellKnown(spellID) then
+				return spells[rank]:IconLine(), spellID
+			end
+		end
+	end
+
+	return subMod
+end

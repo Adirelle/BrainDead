@@ -55,17 +55,9 @@ function mod:OnEnable()
 	self:Debug("Enabled")
 end
 
-local function findHighestKnown(spells)
-	for i = #spells, 1, -1 do
-		if C_SpellBook.IsSpellKnown(spells[i]:GetSpellID()) then
-			return spells[i]
-		end
-	end
-end
-
 function mod:ScanSpellBook(event)
 	for aspect, spells in pairs(aspects) do
-		self.aspects[aspect] = findHighestKnown(spells)
+		self.aspects[aspect] = WheelCast.HighestKnownRank(spells)
 	end
 	return self:Update(event)
 end
@@ -89,7 +81,7 @@ function mod:GetOptions()
 		name = "Default hunter aspect",
 		type = "select",
 		get = function() return self.db.profile.aspect end,
-		set = function(_, _, value)
+		set = function(_, value)
 			self.db.profile.aspect = value
 			self:Update("OnConfigChanged")
 		end,
