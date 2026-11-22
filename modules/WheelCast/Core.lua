@@ -185,14 +185,21 @@ function mod.HighestKnownRank(spells)
 	end
 end
 
-local function FindAuraPredicate(expected, ...)
-	local auraID = select(12, ...)
-	return auraID == expected
+local function FindAuraPredicate(expectedID, minRemainingTime, _, _, _, _, _, _, expirationTime, _, _, _,
+								 spellID)
+	if spellID ~= expectedID then
+		return false
+	end
+	if not minRemainingTime then
+		return true
+	end
+	local remainingTime = expirationTime and expirationTime > 0 and expirationTime - GetTime() or nil
+	return not remainingTime or remainingTime >= minRemainingTime
 end
 
-function mod.FindAura(unitID, auraID, filter)
+function mod.FindAura(unitID, auraID, filter, minRemainingTime)
 	assert(not InCombatLockdown(), "FindAura called in combat")
-	return AuraUtil.FindAura(FindAuraPredicate, unitID, filter, auraID)
+	return AuraUtil.FindAura(FindAuraPredicate, unitID, filter, auraID, minRemainingTime)
 end
 
 local function FindAnyAuraOfPredicate(expected, ...)
@@ -322,7 +329,7 @@ function mod:NewSelfBuffModule(name, ...)
 	function subMod:Test()
 		for rank = #spells, 1, -1 do
 			local spellID = spells[rank]:GetSpellID()
-			if mod.FindAura("player", spellID, "HELPFUL") then
+			if mod.FindAura("player", spellID, "HELPFUL", 60) then
 				return
 			end
 			if C_SpellBook.IsSpellKnown(spellID) then
