@@ -283,12 +283,11 @@ mod:SetDefaultModulePrototype(setmetatable(
 		end,
 
 		SetSpell = function(_, button, spellID)
-			button:SetSpell(spellID)
-			return true
+			return button:SetSpell(spellID)
 		end,
+
 		SetMacrotext = function(_, button, macrotext)
-			button:SetMacroText(macrotext)
-			return true
+			return button:SetMacroText(macrotext)
 		end,
 
 		OnUnitEvent = function(self, event, unit)

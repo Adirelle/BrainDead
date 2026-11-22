@@ -116,11 +116,24 @@ function button:SetManyAttributes(...)
 end
 
 function button:SetSpell(spellID, unit)
+	if UnitCastingInfo("player") or IsStealthed() then
+		return false
+	end
+	local isUsable, insufficientPower = C_Spell.IsSpellUsable(spellID)
+	if not isUsable or insufficientPower then
+		return false
+	end
+	local spellCooldownInfo = C_Spell.GetSpellCooldown(spellID)
+	if not spellCooldownInfo or spellCooldownInfo.isActive or spellCooldownInfo.isOnGCD then
+		return false
+	end
 	self:SetManyAttributes("type", "spell", "spell", spellID, "unit", unit)
+	return true
 end
 
 function button:SetMacroText(macrotext)
 	self:SetManyAttributes("type", "macro", "macrotext", macrotext)
+	return true
 end
 
 function button:Clear()
