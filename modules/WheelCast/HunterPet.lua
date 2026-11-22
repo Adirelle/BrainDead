@@ -24,14 +24,17 @@ local ReviveSpell = WheelCast.GetSpell(982) -- https://www.wowhead.com/forever/s
 function mod:OnEnable()
 	self:RegisterEvent('COMPANION_UPDATE', "Update")
 	self:RegisterEvent('UNIT_PET', "OnUnitEvent")
+	self:RegisterEvent('UNIT_SPELLCAST_START', "OnUnitEvent")
+	self:RegisterEvent('UNIT_SPELLCAST_STOP', "OnUnitEvent")
 	self:RegisterEvent('PET_ATTACK_STOP', "Update")
 	self:Debug("Enabled")
 end
 
 function mod:Test()
-	if UnitIsUnit('pet', 'vehicle') then
+	if UnitIsUnit('pet', 'vehicle') or select(9, UnitCastingInfo("player")) == ReviveSpell:GetSpellID() then
 		return
 	end
+
 	-- NOP
 	if not UnitExists("pet") then
 		return CallSpell:IconLine(), CallSpell:GetSpellID()
