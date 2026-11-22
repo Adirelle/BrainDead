@@ -116,7 +116,7 @@ function button:SetManyAttributes(...)
 end
 
 function button:SetSpell(spellID, unit)
-	if UnitCastingInfo("player") or IsStealthed() then
+	if UnitCastingInfo("player") or UnitChannelInfo("player") or IsStealthed() then
 		return false
 	end
 	local isUsable, insufficientPower = C_Spell.IsSpellUsable(spellID)
