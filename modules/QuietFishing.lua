@@ -5,6 +5,8 @@ Copyright 2010-2026 Adirelle (adirelle@gmail.com)
 All rights reserved.
 ]]
 
+if _G.ForeverFishing then return end
+
 local _, addon = ...
 
 local mod = addon:NewModule('QuietFishing', "AceEvent-3.0")

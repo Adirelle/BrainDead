@@ -5,7 +5,7 @@
 ## Author: Adirelle
 ## Version: @project-version@
 ## SavedVariables: BraindDeadDB
-## OptionalDeps: Ace3, AdiDebug, Scrap, Questie
+## OptionalDeps: Ace3, AdiDebug, Scrap, Questie, ForeverFishing
 ## IconTexture: Interface\Icons\achievement_character_undead_male
 ## AddonCompartmentFunc: OpenBrainDeadConfig
 
