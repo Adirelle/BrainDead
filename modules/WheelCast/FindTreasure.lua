@@ -13,5 +13,5 @@ if WheelCast.playerRace ~= "Dwarf" then
 	return
 end
 
-local mod = WheelCast:NewSelfBuffModule('TrackTreasure', 2481)
+local mod = WheelCast:NewSelfBuffModule('TrackTreasure', nil, 2481)
 mod.priority = 30

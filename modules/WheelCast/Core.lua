@@ -192,7 +192,7 @@ function mod.CreateAuraPredicate(spellID, minRemainingTime)
 	else
 		predicate = function(...) return spellID == select(13, ...) end
 	end
-	if minRemainingTime then
+	if minRemainingTime and minRemainingTime > 0 then
 		local prev = predicate
 		predicate = function(...)
 			if not prev(...) then
@@ -352,15 +352,15 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 
-function mod:NewSelfBuffModule(name, ...)
-	local subMod       = self:NewModule(name)
-	subMod.priority    = 50
-	subMod.unit        = "player"
-	subMod.SetupAction = subMod.SetSpell
+do
+	local super = mod.defaultModulePrototype
+	local proto = setmetatable({
+		priority    = 50,
+		unit        = "player",
+		SetupAction = super.SetSpell
+	}, { __index = super })
 
-	subMod.handler     = mod:NewSpellHandler("HELPFUL", 60, ...)
-
-	function subMod:OnEnable()
+	function proto:OnEnable()
 		self:RegisterEvent('UNIT_AURA', "OnUnitEvent")
 		self:RegisterEvent('SPELLS_CHANGED')
 		self:SPELLS_CHANGED()
@@ -368,14 +368,18 @@ function mod:NewSelfBuffModule(name, ...)
 		self:Debug("Enabled")
 	end
 
-	function subMod:SPELLS_CHANGED()
+	function proto:SPELLS_CHANGED()
 		self.handler:ScanSpellBook()
 		self:Update()
 	end
 
-	function subMod:Test()
+	function proto:Test()
 		return self.handler:Test(self.unit)
 	end
 
-	return subMod
+	function mod:NewSelfBuffModule(name, minRemainingTime, ...)
+		local subMod   = self:NewModule(name, proto)
+		subMod.handler = mod:NewSpellHandler("HELPFUL", minRemainingTime, ...)
+		return subMod
+	end
 end

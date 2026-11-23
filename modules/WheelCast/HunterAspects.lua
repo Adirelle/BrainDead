@@ -56,17 +56,22 @@ function mod:OnEnable()
 end
 
 function mod:ScanSpellBook(event)
+	local ids = {}
 	for aspect, spells in pairs(aspects) do
-		self.aspects[aspect] = WheelCast.HighestKnownRank(spells)
+		local highest = WheelCast.HighestKnownRank(spells)
+		self.aspects[aspect] = highest
+		if highest then
+			tinsert(ids, highest:GetSpellID())
+		end
 	end
+	self.predicate = WheelCast.CreateAuraPredicate(ids)
 	return self:Update(event)
 end
 
 function mod:Test()
 	if not next(self.aspects) then return end
 
-	local anyAspect = WheelCast.FindAnyAuraOf("player", allAspects, "HELPFUL|PLAYER")
-	if anyAspect then return end
+	if WheelCast.FindAura("player", "HELPFUL|PLAYER", self.predicate) then return end
 
 	local wants = self.aspects[self.db.profile.aspect]
 	if wants then
