@@ -185,31 +185,29 @@ function mod.HighestKnownRank(spells)
 	end
 end
 
-local function FindAuraPredicate(expectedID, minRemainingTime, _, _, _, _, _, _, expirationTime, _, _, _,
-								 spellID)
-	if spellID ~= expectedID then
-		return false
+function mod.CreateAuraPredicate(spellID, minRemainingTime)
+	local predicate
+	if type(spellID) == "table" then
+		predicate = function(...) return tContains(spellID, select(13, ...)) end
+	else
+		predicate = function(...) return spellID == select(13, ...) end
 	end
-	if not minRemainingTime then
-		return true
+	if minRemainingTime then
+		local prev = predicate
+		predicate = function(...)
+			if not prev(...) then
+				return false
+			end
+			local expirationTime = select(9, ...)
+			return expirationTime and expirationTime > 0 and (expirationTime - GetTime() >= minRemainingTime) or false
+		end
 	end
-	local remainingTime = expirationTime and expirationTime > 0 and expirationTime - GetTime() or nil
-	return not remainingTime or remainingTime >= minRemainingTime
+	return predicate
 end
 
-function mod.FindAura(unitID, auraID, filter, minRemainingTime)
+function mod.FindAura(unitID, filter, predicate)
 	assert(not InCombatLockdown(), "FindAura called in combat")
-	return AuraUtil.FindAura(FindAuraPredicate, unitID, filter, auraID, minRemainingTime)
-end
-
-local function FindAnyAuraOfPredicate(expected, ...)
-	local auraId = select(12, ...)
-	return tContains(expected, auraId)
-end
-
-function mod.FindAnyAuraOf(unitID, auraIDs, filter)
-	assert(not InCombatLockdown(), "FindAnyAuraOf called in combat")
-	return AuraUtil.FindAura(FindAnyAuraOfPredicate, unitID, filter, auraIDs)
+	return AuraUtil.FindAura(predicate, unitID, filter)
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -289,8 +287,8 @@ mod:SetDefaultModulePrototype(setmetatable(
 			return mod:Set(self.moduleName, label or nil, action or nil)
 		end,
 
-		SetSpell = function(_, button, spellID)
-			return button:SetSpell(spellID)
+		SetSpell = function(self, button, spellID, unitID)
+			return button:SetSpell(spellID, unitID or self.unit)
 		end,
 
 		SetMacrotext = function(_, button, macrotext)
@@ -308,34 +306,75 @@ mod:SetDefaultModulePrototype(setmetatable(
 
 ------------------------------------------------------------------------------------------------------------------------
 
+do
+	local proto = {}
+
+	function proto:ScanSpellBook()
+		wipe(self.accepted)
+		self.highestRank = nil
+		for rank = #self.spells, 1, -1 do
+			local spellID = self.spellIDs[rank]
+			tinsert(self.accepted, spellID)
+			if C_SpellBook.IsSpellKnown(spellID) then
+				self.highestRank = rank
+				break
+			end
+		end
+		self.predicate = (#self.accepted > 0 and self.highestRank and mod.CreateAuraPredicate(self.accepted, self.minRemainingTime) or nil)
+	end
+
+	function proto:Test(unitID)
+		if not self.predicate or mod.FindAura(unitID, self.filter, self.predicate) then
+			return
+		end
+		local spell = self.spells[self.highestRank]
+		return spell:IconLine(), spell:GetSpellID()
+	end
+
+	function mod:NewSpellHandler(filter, minRemainingTime, ...)
+		local handler = setmetatable({
+			spells = {},
+			spellIDs = { ... },
+			accepted = {},
+			filter = filter,
+			minRemainingTime = minRemainingTime,
+		}, { __index = proto })
+
+		for rank = 1, select('#', ...) do
+			local spell = mod.GetSpell(select(rank, ...))
+			spell.rank = rank
+			handler.spells[rank] = spell
+		end
+
+		return handler
+	end
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
 function mod:NewSelfBuffModule(name, ...)
 	local subMod       = self:NewModule(name)
 	subMod.priority    = 50
 	subMod.unit        = "player"
 	subMod.SetupAction = subMod.SetSpell
 
-	local spells       = {}
-	for i = 1, select('#', ...) do
-		tinsert(spells, mod.GetSpell(select(i, ...)))
-	end
+	subMod.handler     = mod:NewSpellHandler("HELPFUL", 60, ...)
 
 	function subMod:OnEnable()
 		self:RegisterEvent('UNIT_AURA', "OnUnitEvent")
-		self:RegisterEvent('SPELLS_CHANGED', "Update")
+		self:RegisterEvent('SPELLS_CHANGED')
+		self:SPELLS_CHANGED()
 
 		self:Debug("Enabled")
 	end
 
+	function subMod:SPELLS_CHANGED()
+		self.handler:ScanSpellBook()
+		self:Update()
+	end
+
 	function subMod:Test()
-		for rank = #spells, 1, -1 do
-			local spellID = spells[rank]:GetSpellID()
-			if mod.FindAura("player", spellID, "HELPFUL", 60) then
-				return
-			end
-			if C_SpellBook.IsSpellKnown(spellID) then
-				return spells[rank]:IconLine(), spellID
-			end
-		end
+		return self.handler:Test(self.unit)
 	end
 
 	return subMod

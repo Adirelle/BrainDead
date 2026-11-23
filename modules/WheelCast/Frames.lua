@@ -115,7 +115,7 @@ function button:SetManyAttributes(...)
 	return true
 end
 
-function button:SetSpell(spellID, unit)
+function button:SetSpell(spellID, unitID)
 	if UnitCastingInfo("player") or UnitChannelInfo("player") or IsStealthed() then
 		return false
 	end
@@ -127,7 +127,7 @@ function button:SetSpell(spellID, unit)
 	if not spellCooldownInfo or spellCooldownInfo.isActive or spellCooldownInfo.isOnGCD then
 		return false
 	end
-	self:SetManyAttributes("type", "spell", "spell", spellID, "unit", unit)
+	self:SetManyAttributes("type", "spell", "spell", spellID, "unit", unitID or nil)
 	return true
 end
 
