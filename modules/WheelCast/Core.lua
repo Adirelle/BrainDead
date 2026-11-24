@@ -5,21 +5,27 @@ Copyright 2010-2026 Adirelle (adirelle@gmail.com)
 All rights reserved.
 ]]
 
-local _, addon  = ...
+local _, addon   = ...
 
-local ae        = LibStub("AceEvent-3.0")
+local ae         = LibStub("AceEvent-3.0")
 
-local mod       = addon:NewModule('WheelCast')
-mod.uiName      = "Cast thing with mouse wheel"
+local mod        = addon:NewModule('WheelCast', "AceBucket-3.0")
+addon.WheelCast  = mod
 
-mod.playerRace  = select(2, UnitRace("player"))
-mod.playerClass = select(2, UnitClass("player"))
+mod.uiName       = "Cast thing with mouse wheel"
 
-addon.WheelCast = mod
+mod.playerRace   = select(2, UnitRace("player"))
+mod.playerClass  = select(2, UnitClass("player"))
 
-mod.moduleOrder = {}
-mod.actions     = {}
-mod.labels      = {}
+mod.moduleOrder  = {}
+mod.actions      = {}
+mod.labels       = {}
+mod.units        = {}
+
+mod.units.player = { guid = UnitGUID("player"), active = true }
+for i = 1, MAX_RAID_MEMBERS do
+	mod.units[string.format("raid%d", i)] = { active = false }
+end
 
 function mod:OnInitialize()
 	self:RegisterDatabase({
@@ -55,10 +61,13 @@ function mod:OnEnable()
 
 	self:RegisterEvent("PLAYER_REGEN_DISABLED", "Disable")
 	self:RegisterEvent("PLAYER_LEAVING_WORLD", "Disable")
-	self:RegisterEvent("UNIT_ENTERED_VEHICLE", "Disable")
+	self:RegisterEvent("UNIT_ENTERED_VEHICLE")
 	self:RegisterEvent("PET_BATTLE_OPENING_START", "Disable")
 	self:RegisterEvent("PLAYER_CONTROL_LOST", "Disable")
 	self:RegisterEvent("PLAYER_DEAD", "Disable")
+
+	self:RegisterEvent("GROUP_ROSTER_UPDATE", "RefreshRoster")
+	self:RegisterBucketEvent({ "UNIT_CONNECTION", "UNIT_DIED", "UNIT_IN_RANGE_UPDATE" }, 0.1, "RefreshUnitBatch")
 
 	local anchorDb = mod.db.profile.anchor
 	self.anchor:SetPoint(anchorDb.point, anchorDb.x, anchorDb.y)
@@ -74,6 +83,8 @@ function mod:OnEnable()
 			mod:Update("OnEnable")
 		end
 	end
+
+	self:RefreshRoster("OnEnable")
 
 	self.hold = false
 	self:Update("OnEnable")
@@ -96,6 +107,12 @@ function mod:OnDisable()
 	self.anchor:Hide()
 
 	self:Debug("Disabled")
+end
+
+function mod:UNIT_ENTERED_VEHICLE(_, unit)
+	if UnitIsUnit(unit, "player") then
+		self:Disable()
+	end
 end
 
 local function activeModuleIter(names, index)
@@ -155,6 +172,64 @@ function mod:Set(name, label, action)
 	self.labels[name], self.actions[name], self.dirty = label, action, true
 	self:Update("Set_" .. name)
 	return true
+end
+
+function mod:RefreshRoster(event)
+	for i = 1, MAX_RAID_MEMBERS do
+		local unitID = string.format("raid%d", i)
+		local unit = self.units[unitID]
+		local guid, oldGUID = UnitGUID(unitID), unit.guid
+		unit.guid = guid
+		if not guid and oldGUID then
+			unit.active = false
+			self:SendMessage("WheelCast_Unit_Updated", unitID, false)
+		elseif guid ~= oldGUID then
+			self:RefreshUnitState(event, unitID)
+		end
+	end
+	self:Debug("roster refreshed", event)
+end
+
+function mod:RefreshUnitBatch(unitIDs)
+	if InCombatLockdown() then return end
+	for unitID in pairs(unitIDs) do
+		self:RefreshUnit("Batch", unitID)
+	end
+end
+
+function mod:RefreshUnit(event, unitID)
+	local unit = self.units[unitID]
+	if not unit then return end
+	local dead = UnitIsDeadOrGhost(unitID)
+	local connected = UnitIsConnected(unitID)
+	local inRange = UnitInRange(unitID)
+	local active = not dead and connected and inRange
+	if active ~= unit.active then
+		unit.active = active
+		self:SendMessage("WheelCast_Unit_Updated", unitID, active)
+	end
+	self:Debug("Unit state refreshed", event, unitID)
+end
+
+function mod:IsActiveUnit(unitID)
+	local unit = self.units[unitID]
+	return unit and unit[unitID].active or false
+end
+
+function iterActiveUnit(units, key)
+	local unit
+	key, unit = next(units, key)
+	if not key then
+		return
+	end
+	if not unit.guid or not unit.active then
+		return iterActiveUnit(units, key)
+	end
+	return key, unit.guid
+end
+
+function mod:IterateActiveUnits()
+	return iterActiveUnit, self.units
 end
 
 ------------------------------------------------------------------------------------------------------------------------
