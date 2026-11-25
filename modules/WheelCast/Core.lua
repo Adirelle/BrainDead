@@ -73,8 +73,6 @@ function mod:OnEnable()
 	self.anchor:SetPoint(anchorDb.point, anchorDb.x, anchorDb.y)
 	self.anchor:SetShown(not anchorDb.locked)
 
-	wipe(self.labels)
-	wipe(self.actions)
 	self.hold = true
 
 	for name, mod in self:IterateModules() do
@@ -122,7 +120,7 @@ local function activeModuleIter(names, index)
 	if not mod.db.profile.modules[name] then
 		return activeModuleIter(names, index)
 	end
-	return index, name
+	return index, name, mod:GetModule(name)
 end
 
 function mod:IterateActiveModules()
@@ -130,9 +128,7 @@ function mod:IterateActiveModules()
 end
 
 function mod:Update(event)
-	if self.hold or not self.dirty then return end
-
-	self:Debug("Updating", event, self.labels, self.actions)
+	if self.hold then return end
 
 	local tooltip, button = self.tooltip, self.button
 
@@ -143,35 +139,21 @@ function mod:Update(event)
 	button:Clear()
 
 	local hasAction
-	for _, name in self:IterateActiveModules() do
-		if self.labels[name] then
-			tooltip:AddLine(self.labels[name])
-		end
-		hasAction = hasAction or self.actions[name] ~= nil
+	for _, _, subMod in self:IterateActiveModules() do
+		subMod:SetupTooltip(tooltip)
 	end
 
 	tooltip:SetShown(tooltip:NumLines() > 1)
-	button:SetShown(hasAction)
 
-	self.dirty = false
-	self:Debug("Updated", event, "#labels:", tooltip:NumLines(), "action:", hasAction)
+	self:Debug("Updated", event)
 end
 
 function mod:SetupAction(button)
-	for _, name in self:IterateActiveModules() do
-		if self.actions[name] and self:GetModule(name):SetupAction(button, self.actions[name]) then
+	for _, _, subMod in self:IterateActiveModules() do
+		if subMod:SetupAction(button) then
 			return
 		end
 	end
-end
-
-function mod:Set(name, label, action)
-	if self.labels[name] == label and self.actions[name] == action then
-		return false
-	end
-	self.labels[name], self.actions[name], self.dirty = label, action, true
-	self:Update("Set_" .. name)
-	return true
 end
 
 function mod:RefreshRoster(event)
@@ -325,7 +307,6 @@ function mod:GetOptions()
 					mod:Update("OnConfigChanged")
 				else
 					mod:Disable()
-					self.labels[name], self.actions[name], self.dirty = nil, nil, true
 					self:Update("OnConfigChanged")
 				end
 			end
@@ -354,20 +335,38 @@ mod:SetDefaultModuleState(false)
 mod:SetDefaultModuleLibraries('AceEvent-3.0')
 mod:SetDefaultModulePrototype(setmetatable(
 	{
+		OnDisable = function(self)
+			self._label, self._action = nil, nil
+			self:Debug("disabled")
+		end,
 		Test = function(self) error(self.name .. ":Test() is not implemented") end,
 		SetupAction = function(self) error(self.name .. ":SetupAction() is not implemented") end,
 
 		Update = function(self)
 			local label, action = self:Test()
-			return mod:Set(self.moduleName, label or nil, action or nil)
+			if label ~= self._label or action ~= self._action then
+				self._label, self._action = label, action
+				mod:Update(self.moduleName)
+			end
 		end,
 
-		SetSpell = function(self, button, spellID, unitID)
-			return button:SetSpell(spellID, unitID or self.unit)
+		SetupTooltip = function(self, tooltip)
+			if self._label then
+				tooltip:AddLine(self._label)
+			end
 		end,
 
-		SetMacrotext = function(_, button, macrotext)
-			return button:SetMacroText(macrotext)
+		SetSpell = function(self, button)
+			if self._action then
+				self:Debug("SetSpell", button, self._action, self.unit)
+				return button:SetSpell(self._action, self.unit)
+			end
+		end,
+
+		SetMacrotext = function(self, button)
+			if self._action then
+				return button:SetMacroText(self._action)
+			end
 		end,
 
 		OnUnitEvent = function(self, event, unit)

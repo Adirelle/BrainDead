@@ -84,7 +84,6 @@ local buttonName = mod.name .. "Button"
 button = CreateFrame("Button", buttonName, tooltip, "SecureActionButtonTemplate")
 button:RegisterForClicks("AnyDown", "AnyUp")
 button:SetAllPoints(tooltip)
-button:Hide()
 
 button:SetScript("PreClick", function(self)
 	if InCombatLockdown() then return end
