@@ -13,31 +13,23 @@ if WheelCast.playerClass ~= "HUNTER" then
 	return
 end
 
-local mod        = WheelCast:NewModule('HunterAspect')
-mod.priority     = 50
-mod.unit         = "player"
-mod.aspects      = {}
-mod.SetupAction  = mod.SetSpell
+local mod       = WheelCast:NewModule('HunterAspect')
+mod.priority    = 50
+mod.unit        = "player"
+mod.aspects     = {}
+mod.SetupAction = mod.SetSpell
 
 -- from https://www.wowhead.com/forever/spells/abilities/hunter/name:aspect#0+2+4+22
-local aspects    = {
-	beast = { 13616, 1299445, 1299446, 1299447 },
-	cheetah = { 5118 },
-	falcon = { 469145 },
-	hawk = { 13165, 14318, 14319, 14320, 14321, 14322, 25296 },
-	monkey = { 13163 },
-	pack = { 13159 },
-	viper = { 415423 },
-	wild = { 20043, 20190 },
+local aspects   = {
+	beast = WheelCast.NewRankScanner(13616, 1299445, 1299446, 1299447),
+	cheetah = WheelCast.NewRankScanner(5118),
+	falcon = WheelCast.NewRankScanner(469145),
+	hawk = WheelCast.NewRankScanner(13165, 14318, 14319, 14320, 14321, 14322, 25296),
+	monkey = WheelCast.NewRankScanner(13163),
+	pack = WheelCast.NewRankScanner(13159),
+	viper = WheelCast.NewRankScanner(415423),
+	wild = WheelCast.NewRankScanner(20043, 20190),
 }
-
-local allAspects = {}
-for _, spells in pairs(aspects) do
-	for i, spellID in pairs(spells) do
-		spells[i] = WheelCast.GetSpell(spellID)
-		tinsert(allAspects, spellID)
-	end
-end
 
 function mod:OnInitialize()
 	self:RegisterDatabase({
@@ -57,21 +49,17 @@ end
 
 function mod:ScanSpellBook(event)
 	local ids = {}
-	for aspect, spells in pairs(aspects) do
-		local highest = WheelCast.HighestKnownRank(spells)
-		self.aspects[aspect] = highest
-		if highest then
-			tinsert(ids, highest:GetSpellID())
-		end
+	for aspect, scanner in pairs(aspects) do
+		self.aspects[aspect] = scanner(ids)
 	end
-	self.predicate = WheelCast.CreateAuraPredicate(ids)
+	self.findBuff = WheelCast.NewAuraFinder("PLAYER|HELPFUL", ids)
 	return self:Update(event)
 end
 
 function mod:Test()
 	if not next(self.aspects) then return end
 
-	if WheelCast.FindAura("player", "HELPFUL|PLAYER", self.predicate) then return end
+	if self.findBuff("player") then return end
 
 	local wants = self.aspects[self.db.profile.aspect]
 	if wants then

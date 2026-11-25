@@ -89,8 +89,7 @@ function mod:OnDisable()
 			{ "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD", "UNIT_EXITED_VEHICLE", "PET_BATTLE_OVER",
 				"PLAYER_CONTROL_GAINED", "PLAYER_ALIVE", "PLAYER_UNGHOST" },
 			0.2,
-			self.Enable,
-			self
+			function() mod:Enable() end
 		)
 	end
 

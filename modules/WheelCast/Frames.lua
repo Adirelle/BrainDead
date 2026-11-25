@@ -122,7 +122,7 @@ function button:SetSpell(spellID, unitID)
 	if not isUsable or insufficientPower then
 		return false
 	end
-	if not C_Spell.IsSpellInRange(spellID, unitID) then
+	if unitID and unitID ~= "player" and not C_Spell.IsSpellInRange(spellID, unitID) then
 		return false
 	end
 	local spellCooldownInfo = C_Spell.GetSpellCooldown(spellID)
