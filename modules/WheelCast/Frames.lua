@@ -122,6 +122,9 @@ function button:SetSpell(spellID, unitID)
 	if not isUsable or insufficientPower then
 		return false
 	end
+	if not C_Spell.IsSpellInRange(spellID, unitID) then
+		return false
+	end
 	local spellCooldownInfo = C_Spell.GetSpellCooldown(spellID)
 	if not spellCooldownInfo or spellCooldownInfo.isActive or spellCooldownInfo.isOnGCD then
 		return false
