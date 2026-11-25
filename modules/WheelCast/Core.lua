@@ -8,6 +8,7 @@ All rights reserved.
 local _, addon   = ...
 
 local ae         = LibStub("AceEvent-3.0")
+local ab         = LibStub("AceBucket-3.0")
 
 local mod        = addon:NewModule('WheelCast', "AceBucket-3.0")
 addon.WheelCast  = mod
@@ -18,8 +19,6 @@ mod.playerRace   = select(2, UnitRace("player"))
 mod.playerClass  = select(2, UnitClass("player"))
 
 mod.moduleOrder  = {}
-mod.actions      = {}
-mod.labels       = {}
 mod.units        = {}
 
 mod.units.player = { guid = UnitGUID("player"), active = true }
@@ -50,7 +49,6 @@ function mod:OnEnable()
 		or not IsPlayerInWorld()
 		or not HasFullControl()
 		or UnitHasVehicleUI("player")
-		or UnitOnTaxi("player")
 		or UnitIsDeadOrGhost("player")
 		or C_PetBattles.IsInBattle()
 	then
@@ -60,14 +58,10 @@ function mod:OnEnable()
 	ae.UnregisterAllEvents(self.name)
 
 	self:RegisterEvent("PLAYER_REGEN_DISABLED", "Disable")
-	self:RegisterEvent("PLAYER_LEAVING_WORLD", "Disable")
 	self:RegisterEvent("UNIT_ENTERED_VEHICLE")
-	self:RegisterEvent("PET_BATTLE_OPENING_START", "Disable")
-	self:RegisterEvent("PLAYER_CONTROL_LOST", "Disable")
-	self:RegisterEvent("PLAYER_DEAD", "Disable")
-
-	self:RegisterEvent("GROUP_ROSTER_UPDATE", "RefreshRoster")
-	self:RegisterBucketEvent({ "UNIT_CONNECTION", "UNIT_DIED", "UNIT_IN_RANGE_UPDATE" }, 0.1, "RefreshUnitBatch")
+	self:RegisterBucketEvent(
+		{ "PET_BATTLE_OPENING_START", "PLAYER_CONTROL_LOST", "PLAYER_DEAD", "PLAYER_LEAVING_WORLD" },
+		0, "Disable")
 
 	local anchorDb = mod.db.profile.anchor
 	self.anchor:SetPoint(anchorDb.point, anchorDb.x, anchorDb.y)
@@ -82,8 +76,6 @@ function mod:OnEnable()
 		end
 	end
 
-	self:RefreshRoster("OnEnable")
-
 	self.hold = false
 	self:Update("OnEnable")
 
@@ -92,13 +84,14 @@ end
 
 function mod:OnDisable()
 	if self:IsModuleActive() then
-		ae.RegisterEvent(self.name, "PLAYER_REGEN_ENABLED", self.Enable, self)
-		ae.RegisterEvent(self.name, "PLAYER_ENTERING_WORLD", self.Enable, self)
-		ae.RegisterEvent(self.name, "UNIT_EXITED_VEHICLE", self.Enable, self)
-		ae.RegisterEvent(self.name, "PET_BATTLE_OVER", self.Enable, self)
-		ae.RegisterEvent(self.name, "PLAYER_CONTROL_GAINED", self.Enable, self)
-		ae.RegisterEvent(self.name, "PLAYER_ALIVE", self.Enable, self)
-		ae.RegisterEvent(self.name, "PLAYER_UNGHOST", self.Enable, self)
+		ab.RegisterBucketEvent(
+			self.name,
+			{ "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD", "UNIT_EXITED_VEHICLE", "PET_BATTLE_OVER",
+				"PLAYER_CONTROL_GAINED", "PLAYER_ALIVE", "PLAYER_UNGHOST" },
+			0.2,
+			self.Enable,
+			self
+		)
 	end
 
 	self.tooltip:Hide()
@@ -138,7 +131,6 @@ function mod:Update(event)
 
 	button:Clear()
 
-	local hasAction
 	for _, _, subMod in self:IterateActiveModules() do
 		subMod:SetupTooltip(tooltip)
 	end
@@ -154,117 +146,6 @@ function mod:SetupAction(button)
 			return
 		end
 	end
-end
-
-function mod:RefreshRoster(event)
-	for i = 1, MAX_RAID_MEMBERS do
-		local unitID = string.format("raid%d", i)
-		local unit = self.units[unitID]
-		local guid, oldGUID = UnitGUID(unitID), unit.guid
-		unit.guid = guid
-		if not guid and oldGUID then
-			unit.active = false
-			self:SendMessage("WheelCast_Unit_Updated", unitID, false)
-		elseif guid ~= oldGUID then
-			self:RefreshUnitState(event, unitID)
-		end
-	end
-	self:Debug("roster refreshed", event)
-end
-
-function mod:RefreshUnitBatch(unitIDs)
-	if InCombatLockdown() then return end
-	for unitID in pairs(unitIDs) do
-		self:RefreshUnit("Batch", unitID)
-	end
-end
-
-function mod:RefreshUnit(event, unitID)
-	local unit = self.units[unitID]
-	if not unit then return end
-	local dead = UnitIsDeadOrGhost(unitID)
-	local connected = UnitIsConnected(unitID)
-	local inRange = UnitInRange(unitID)
-	local active = not dead and connected and inRange
-	if active ~= unit.active then
-		unit.active = active
-		self:SendMessage("WheelCast_Unit_Updated", unitID, active)
-	end
-	self:Debug("Unit state refreshed", event, unitID)
-end
-
-function mod:IsActiveUnit(unitID)
-	local unit = self.units[unitID]
-	return unit and unit[unitID].active or false
-end
-
-function iterActiveUnit(units, key)
-	local unit
-	key, unit = next(units, key)
-	if not key then
-		return
-	end
-	if not unit.guid or not unit.active then
-		return iterActiveUnit(units, key)
-	end
-	return key, unit.guid
-end
-
-function mod:IterateActiveUnits()
-	return iterActiveUnit, self.units
-end
-
-------------------------------------------------------------------------------------------------------------------------
-
-function mod.IconLine(icon, text)
-	if icon then
-		return "|T" .. icon .. ":0:0:0:0:64:64:4:60:4:60|t " .. text
-	end
-	return text
-end
-
-local function Spell_IconLine(self)
-	return mod.IconLine(self:GetSpellTexture(), self:GetSpellName())
-end
-
-function mod.GetSpell(spellID)
-	local spell = Spell:CreateFromSpellID(spellID)
-	spell.IconLine = Spell_IconLine
-	return spell
-end
-
-function mod.HighestKnownRank(spells)
-	for rank = #spells, 1, -1 do
-		if C_SpellBook.IsSpellKnown(spells[rank]:GetSpellID()) then
-			mod:Debug("HighestKnownRank", spells[rank]:GetSpellName(), rank, spells[rank]:GetSpellID())
-			return spells[rank]
-		end
-	end
-end
-
-function mod.CreateAuraPredicate(spellID, minRemainingTime)
-	local predicate
-	if type(spellID) == "table" then
-		predicate = function(...) return tContains(spellID, select(13, ...)) end
-	else
-		predicate = function(...) return spellID == select(13, ...) end
-	end
-	if minRemainingTime and minRemainingTime > 0 then
-		local prev = predicate
-		predicate = function(...)
-			if not prev(...) then
-				return false
-			end
-			local expirationTime = select(9, ...)
-			return expirationTime and expirationTime > 0 and (expirationTime - GetTime() >= minRemainingTime) or false
-		end
-	end
-	return predicate
-end
-
-function mod.FindAura(unitID, filter, predicate)
-	assert(not InCombatLockdown(), "FindAura called in combat")
-	return AuraUtil.FindAura(predicate, unitID, filter)
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -331,6 +212,90 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 
+function mod.IconLine(icon, text)
+	if icon then
+		return "|T" .. icon .. ":0:0:0:0:64:64:4:60:4:60|t " .. text
+	end
+	return text
+end
+
+local function Spell_IconLine(self)
+	return mod.IconLine(self:GetSpellTexture(), self:GetSpellName())
+end
+
+function mod.GetSpell(spellID)
+	local spell = Spell:CreateFromSpellID(spellID)
+	spell.IconLine = Spell_IconLine
+	return spell
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+local function CreateAuraPredicate(spellID, minRemainingTime)
+	local predicate
+	if type(spellID) == "table" then
+		if #spellID == 0 then return nil end
+		predicate = function(...) return tContains(spellID, select(13, ...)) end
+	elseif type(spellID) == "number" and spellID > 0 then
+		predicate = function(...) return spellID == select(13, ...) end
+	elseif spellID == nil then
+		return nil
+	else
+		error(string.format("invalid spell id: %s", spellID))
+	end
+	if minRemainingTime and minRemainingTime > 0 then
+		local prev = predicate
+		predicate = function(...)
+			if not prev(...) then
+				return false
+			end
+			local expirationTime = select(9, ...)
+			return expirationTime and expirationTime > 0 and (expirationTime - GetTime() >= minRemainingTime) or false
+		end
+	end
+	return predicate
+end
+
+local function noop() end
+
+function mod.NewAuraFinder(filter, spellID, minRemainingTime)
+	local predicate = CreateAuraPredicate(spellID, minRemainingTime)
+	if not predicate then
+		return noop
+	end
+	return function(unitID)
+		assert(not InCombatLockdown(), "AuraFinder called in combat")
+		return AuraUtil.FindAura(predicate, unitID, filter)
+	end
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+function mod.NewRankScanner(...)
+	local spells = {}
+
+	for rank = select('#', ...), 1, -1 do
+		local spellID = select(rank, ...)
+		local spell = mod.GetSpell(spellID)
+		spell.rank = rank
+		tinsert(spells, spell)
+	end
+
+	return function(equalOrGreater)
+		for _, spell in ipairs(spells) do
+			local spellID = spell:GetSpellID()
+			if equalOrGreater then
+				tinsert(equalOrGreater, spellID)
+			end
+			if C_SpellBook.IsSpellKnown(spellID) then
+				return spell
+			end
+		end
+	end
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
 mod:SetDefaultModuleState(false)
 mod:SetDefaultModuleLibraries('AceEvent-3.0')
 mod:SetDefaultModulePrototype(setmetatable(
@@ -339,6 +304,7 @@ mod:SetDefaultModulePrototype(setmetatable(
 			self._label, self._action = nil, nil
 			self:Debug("disabled")
 		end,
+
 		Test = function(self) error(self.name .. ":Test() is not implemented") end,
 		SetupAction = function(self) error(self.name .. ":SetupAction() is not implemented") end,
 
@@ -381,52 +347,6 @@ mod:SetDefaultModulePrototype(setmetatable(
 ------------------------------------------------------------------------------------------------------------------------
 
 do
-	local proto = {}
-
-	function proto:ScanSpellBook()
-		wipe(self.accepted)
-		self.highestRank = nil
-		for rank = #self.spells, 1, -1 do
-			local spellID = self.spellIDs[rank]
-			tinsert(self.accepted, spellID)
-			if C_SpellBook.IsSpellKnown(spellID) then
-				self.highestRank = rank
-				break
-			end
-		end
-		self.predicate = (#self.accepted > 0 and self.highestRank and mod.CreateAuraPredicate(self.accepted, self.minRemainingTime) or nil)
-	end
-
-	function proto:Test(unitID)
-		if not self.predicate or mod.FindAura(unitID, self.filter, self.predicate) then
-			return
-		end
-		local spell = self.spells[self.highestRank]
-		return spell:IconLine(), spell:GetSpellID()
-	end
-
-	function mod:NewSpellHandler(filter, minRemainingTime, ...)
-		local handler = setmetatable({
-			spells = {},
-			spellIDs = { ... },
-			accepted = {},
-			filter = filter,
-			minRemainingTime = minRemainingTime,
-		}, { __index = proto })
-
-		for rank = 1, select('#', ...) do
-			local spell = mod.GetSpell(select(rank, ...))
-			spell.rank = rank
-			handler.spells[rank] = spell
-		end
-
-		return handler
-	end
-end
-
-------------------------------------------------------------------------------------------------------------------------
-
-do
 	local super = mod.defaultModulePrototype
 	local proto = setmetatable({
 		priority    = 50,
@@ -434,26 +354,36 @@ do
 		SetupAction = super.SetSpell
 	}, { __index = super })
 
+	function mod:NewSelfBuffModule(name, minTimeRemaining, ...)
+		local subMod            = self:NewModule(name, proto)
+		subMod.minTimeRemaining = minTimeRemaining
+		subMod.spellIDs         = {}
+		subMod.findSpell        = mod.NewRankScanner(...)
+		return subMod
+	end
+
 	function proto:OnEnable()
 		self:RegisterEvent('UNIT_AURA', "OnUnitEvent")
-		self:RegisterEvent('SPELLS_CHANGED')
-		self:SPELLS_CHANGED()
+		self:RegisterEvent('SPELLS_CHANGED', "ScanSpellBook")
+		self:ScanSpellBook()
 
 		self:Debug("Enabled")
 	end
 
-	function proto:SPELLS_CHANGED()
-		self.handler:ScanSpellBook()
-		self:Update()
+	function proto:ScanSpellBook()
+		wipe(self.spellIDs)
+		local spell = self.findSpell(self.spellIDs)
+		if spell == self.spell then return end
+		self.spell = spell
+		self.findBuff = mod.NewAuraFinder("HELPFUL", self.spellIDs, self.minTimeRemaining)
+		if self.spell then
+			self:Update()
+		end
 	end
 
 	function proto:Test()
-		return self.handler:Test(self.unit)
-	end
-
-	function mod:NewSelfBuffModule(name, minRemainingTime, ...)
-		local subMod   = self:NewModule(name, proto)
-		subMod.handler = mod:NewSpellHandler("HELPFUL", minRemainingTime, ...)
-		return subMod
+		if self.spell and not self.findBuff(self.unit) then
+			return self.spell:IconLine(), self.spell:GetSpellID()
+		end
 	end
 end
