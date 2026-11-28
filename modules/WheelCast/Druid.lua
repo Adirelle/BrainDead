@@ -26,8 +26,8 @@ mod.expectedAuras = {}
 
 function mod:OnEnable()
 	self:RegisterEvent('SPELLS_CHANGED', "Update")
-	self:RegisterEvent("GROUP_ROSTER_UPDATE", "ScanRaidRoster")
-	self:RegisterBucketEvent({ "UNIT_AURA", "UNIT_CONNECTION", "UNIT_HEALTH", "UNIT_IN_RANGE_UPDATE" }, 0.1, "ScanUnits")
+	self:RegisterMessage("WheelCast_Unit_Changed", "ScanUnit")
+	self:RegisterBucketEvent({ "UNIT_AURA" }, 0.1, "ScanUnits")
 
 	self:Debug("Enabled")
 end
@@ -35,59 +35,60 @@ end
 function mod:Update(event)
 	self:Debug("Update", event)
 	wipe(self.expectedAuras)
+
 	local mark = findMark(mod.expectedAuras)
 	if mark == self.mark then return end
 	self.mark = mark
+
 	if not mark then return end
+
 	self.gift = findGift(mod.expectedAuras)
+
 	self.findBuff = WheelCast.NewAuraFinder("HELPFUL", self.expectedAuras, 60)
-	self:ScanRaidRoster(event)
+
+	for _, unit in WheelCast:IterateUnits() do
+		self:ScanUnit(unit)
+	end
 end
 
-local allUnitIDs = { player = true }
-for i = 1, MAX_RAID_MEMBERS do
-	allUnitIDs[string.format("raid%d", allUnitIDs)] = true
-end
-
-local function isActiveUnit(unitID)
-	return unitID == "player" or
-		allUnitIDs[unitID] and UnitInRaid(unitID) and UnitIsConnected(unitID) and not UnitIsDeadOrGhost(unitID)
-end
-
-function mod:ScanRaidRoster(event)
-	if not self.mark then return end
-	self:Debug("ScanRaidRoster", event)
-	self:ScanUnits(allUnitIDs)
-end
+local key = mod.name
 
 function mod:ScanUnits(unitIDs)
-	if not self.mark then return end
-	local changed = false
+	if InCombatLockdown() then return end
 	for unitID in pairs(unitIDs) do
-		local missing = isActiveUnit(unitID) and not self.findBuff(unitID) or nil
-		self:Debug("ScanUnit", unitID, result)
-		if missing ~= self.units[unitID] then
-			self.units[unitID] = missing
-			changed = true
+		local unit = WheelCast.units[unitID]
+		if unit then
+			self:ScanUnit(unit)
 		end
 	end
-	if changed then
+end
+
+function mod:ScanUnit(unit)
+	local missing = unit.active and not self.findBuff(unit.id)
+	if missing ~= unit[key] then
+		unit[key] = missing
 		WheelCast:Update(self.moduleName)
 	end
 end
 
 function mod:SetupTooltip(tooltip)
-	for unitID in pairs(self.units) do
-		tooltip:AddLine(WheelCast.IconLine(self.mark:GetSpellTexture(), UnitName(unitID)))
+	for _, unit in WheelCast:IterateUnits() do
+		if unit[key] then
+			tooltip:AddLine(WheelCast.IconLine(self.mark:GetSpellTexture(), unit.name))
+		end
 	end
 end
 
 function mod:SetupAction(button)
 	self:Debug("SetupAction")
-	for unitID in pairs(self.units) do
-		if button:SetSpell(self.mark:GetSpellID(), unitID) then
-			return true
+	local count, last = 0, nil
+	for _, unit in WheelCast:IterateUnits() do
+		if unit.active and unit[key] and button:SetSpell(self.mark:GetSpellID(), unit.id) then
+			last, count = unit, count + 1
 		end
 	end
-	return false
+	if count > 3 and self.gift then
+		button:SetSpell(self.gift:GetSpellID(), last.id)
+	end
+	return count > 0
 end

@@ -63,11 +63,16 @@ function mod:OnEnable()
 		{ "PET_BATTLE_OPENING_START", "PLAYER_CONTROL_LOST", "PLAYER_DEAD", "PLAYER_LEAVING_WORLD" },
 		0, "Disable")
 
+	self:RegisterEvent("GROUP_ROSTER_UPDATE", "ScanRoster")
+	self:RegisterBucketEvent({ "UNIT_CONNECTION", "UNIT_HEALTH", "UNIT_IN_RANGE_UPDATE" }, 0.1, "ScanUnits")
+
 	local anchorDb = mod.db.profile.anchor
 	self.anchor:SetPoint(anchorDb.point, anchorDb.x, anchorDb.y)
 	self.anchor:SetShown(not anchorDb.locked)
 
 	self.hold = true
+
+	self:ScanRoster("OnEnable")
 
 	for name, mod in self:IterateModules() do
 		if self.db.profile.modules[name] then
@@ -385,4 +390,104 @@ do
 			return self.spell:IconLine(), self.spell:GetSpellID()
 		end
 	end
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+mod.units = {}
+
+local groupIters = {
+	alone = function(_, index)
+		if index == 0 then
+			return 1, "player"
+		end
+	end,
+	party = function(_, index)
+		index = index + 1
+		if index > 5 then
+			return
+		end
+		return index, string.format("party%d", index)
+	end,
+	raid = function(_, index)
+		index = index + 1
+		if index > 40 then
+			return
+		end
+		return index, string.format("raid%d", index)
+	end,
+}
+
+local function getGroupType()
+	if IsInRaid() then
+		return "raid"
+	end
+	if IsInGroup() then
+		return "party"
+	end
+	return "alone"
+end
+
+function mod:ScanRoster(event)
+	local groupType = getGroupType()
+	if groupType ~= self.groupType then
+		self:Debug("changed group type", self.groupType, "=>", groupType)
+		self.groupType = groupType
+		wipe(self.units)
+	end
+	for _, unitID in groupIters[groupType], nil, 0 do
+		if UnitExists(unitID) then
+			local unit, guid = self.units[unitID], UnitGUID(unitID)
+			if not unit then
+				self.units[unitID] = { guid = guid, id = unitID, name = UnitName(unitID) }
+				self:Debug("unit added", self.units[unitID])
+			elseif guid ~= unit.guid then
+				unit.guid, unit.name = guid, UnitName(unitID)
+				self:Debug("unit changed", unit)
+			end
+		elseif self.units[unitID] then
+			self:Debug("unit removed", self.units)
+			self.units[unitID] = nil
+		end
+	end
+	self:ScanUnits(self.units)
+	self:Debug("roster scanned", event, groupType)
+end
+
+local function isActive(unitID)
+	return UnitIsConnected(unitID) and not UnitIsDeadOrGhost(unitID)
+end
+
+function mod:ScanUnits(unitIDs)
+	if not next(unitIDs) or InCombatLockdown() then return end
+	local hold = self.hold
+	self.hold = true
+	for unitID in pairs(unitIDs) do
+		local unit = self.units[unitID]
+		if unit then
+			local active = UnitIsConnected(unitID) and not UnitIsDeadOrGhost(unitID)
+			if active ~= unit.active then
+				unit.active = active
+				self:Debug("unit", unit, active and "activated" or "deactivated")
+				self:SendMessage("WheelCast_Unit_Changed", unit)
+			end
+		end
+	end
+	self.hold = hold
+	self:Update("ScanUnits")
+	self:Debug("units scanned")
+end
+
+function mod:ScanUnit(unitID)
+	local unit = self.units[unitID]
+	if not unit then return end
+	local missing = isActive(unitID) and not self.findBuff(unitID)
+	if missing ~= unit.missing then
+		unit.missing = true
+		return true
+	end
+end
+
+function mod:IterateUnits()
+	return pairs(self.units)
 end
