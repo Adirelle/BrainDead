@@ -41,7 +41,7 @@ local function getStackPrice(bag, slot)
 end
 
 function mod:Test()
-	if C_Container.CalculateTotalNumberOfFreeBagSlots() > 1 then
+	if C_Container.CalculateTotalNumberOfFreeBagSlots() > 0 then
 		return
 	end
 
