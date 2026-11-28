@@ -13,13 +13,83 @@ if WheelCast.playerClass ~= "DRUID" then
 	return
 end
 
---WheelCast:NewSelfBuffModule('DruidMark', 60,)
-WheelCast:NewSelfBuffModule('DruidThorns', 60, 467, 782, 1075, 8914, 9756, 9910)
+------------------------------------------------------------------------------------------------------------------------
+
+local findThorns  = WheelCast.NewRankScanner(467, 782, 1075, 8914, 9756, 9910)
+
+local mod         = WheelCast:NewModule("Thorns", "AceBucket-3.0")
+mod.priority      = 50
+mod.units         = {}
+mod.expectedAuras = {}
+
+function mod:OnEnable()
+	self:RegisterEvent('SPELLS_CHANGED', "Update")
+	self:RegisterMessage("WheelCast_Unit_Changed", "ScanUnit")
+	self:RegisterBucketEvent({ "UNIT_AURA" }, 0.1, "ScanUnits")
+
+	self:Debug("Enabled")
+end
+
+function mod:Update(event)
+	wipe(self.expectedAuras)
+	local thorns = findThorns(mod.expectedAuras)
+	if thorns ~= self.thorns then
+		self.findBuff = WheelCast.NewAuraFinder("HELPFUL", self.expectedAuras, 60)
+		self.thorns = thorns
+	end
+
+	for _, unit in WheelCast:IterateUnits() do
+		self:ScanUnit(event, unit)
+	end
+end
+
+local key = mod.name
+
+function mod:ScanUnits(unitIDs)
+	if InCombatLockdown() then return end
+	for unitID in pairs(unitIDs) do
+		local unit = WheelCast.units[unitID]
+		if unit then
+			self:ScanUnit(_, unit)
+		end
+	end
+end
+
+local function RequiresBuff(unit)
+	return unit.active and (unit.role == "NONE" or unit.role == "TANK")
+end
+
+function mod:ScanUnit(_, unit, ...)
+	local missing = RequiresBuff(unit) and not self.findBuff(unit.id) or false
+	if missing ~= unit[key] then
+		unit[key] = missing
+		WheelCast:Update(self.moduleName)
+	end
+end
+
+function mod:SetupTooltip(tooltip)
+	for _, unit in WheelCast:IterateUnits() do
+		if unit[key] then
+			tooltip:AddLine(WheelCast.IconLine(self.thorns:GetSpellTexture(), unit.name))
+		end
+	end
+end
+
+function mod:SetupAction(button)
+	self:Debug("SetupAction")
+	for _, unit in WheelCast:IterateUnits() do
+		if unit.active and unit[key] and button:SetSpell(self.thorns:GetSpellID(), unit.id) then
+			return
+		end
+	end
+end
+
+------------------------------------------------------------------------------------------------------------------------
 
 local findMark    = WheelCast.NewRankScanner(1126, 5232, 6756, 5234, 8907, 9884, 9885)
 local findGift    = WheelCast.NewRankScanner(21849, 21850)
 
-local mod         = WheelCast:NewModule("DruidMark", "AceBucket-3.0")
+local mod         = WheelCast:NewModule("MarkOfTheWild", "AceBucket-3.0")
 mod.priority      = 50
 mod.units         = {}
 mod.expectedAuras = {}
