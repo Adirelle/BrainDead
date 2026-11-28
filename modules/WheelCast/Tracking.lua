@@ -58,8 +58,8 @@ function mod:GetOptions()
 		type = "select",
 		width = "double",
 		get = function() return self.db.profile.tracking end,
-		set = function(_, key, value)
-			self.db.profile.tracking = key
+		set = function(_, value)
+			self.db.profile.tracking = value
 			self:Update("OnConfigChanged")
 		end,
 		values = function()
@@ -69,5 +69,13 @@ function mod:GetOptions()
 			end
 			return choices
 		end,
+		hidden = function()
+			if self:IsEnabled() then
+				for _ in iterateTrackingSpells() do
+					return false
+				end
+			end
+			return true
+		end
 	}
 end
