@@ -27,6 +27,7 @@ modules\ValidateQuest.lua
 
 modules\WheelCast\Core.Lua
 modules\WheelCast\Frames.lua
+modules\WheelCast\AutoOpen.lua
 modules\WheelCast\FindTreasure.lua
 modules\WheelCast\Druid.lua
 modules\WheelCast\HunterAspects.lua
