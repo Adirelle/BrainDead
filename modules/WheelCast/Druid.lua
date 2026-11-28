@@ -33,21 +33,16 @@ function mod:OnEnable()
 end
 
 function mod:Update(event)
-	self:Debug("Update", event)
 	wipe(self.expectedAuras)
-
 	local mark = findMark(mod.expectedAuras)
-	if mark == self.mark then return end
-	self.mark = mark
-
-	if not mark then return end
-
-	self.gift = findGift(mod.expectedAuras)
-
-	self.findBuff = WheelCast.NewAuraFinder("HELPFUL", self.expectedAuras, 60)
+	local gift = mark and findGift(mod.expectedAuras)
+	if mark ~= self.mark or gift ~= self.gift then
+		self.findBuff = WheelCast.NewAuraFinder("HELPFUL", self.expectedAuras, 60)
+		self.mark, self.gift = mark, gift
+	end
 
 	for _, unit in WheelCast:IterateUnits() do
-		self:ScanUnit(unit)
+		self:ScanUnit(event, unit)
 	end
 end
 
@@ -58,13 +53,13 @@ function mod:ScanUnits(unitIDs)
 	for unitID in pairs(unitIDs) do
 		local unit = WheelCast.units[unitID]
 		if unit then
-			self:ScanUnit(unit)
+			self:ScanUnit(_, unit)
 		end
 	end
 end
 
-function mod:ScanUnit(unit)
-	local missing = unit.active and not self.findBuff(unit.id)
+function mod:ScanUnit(_, unit, ...)
+	local missing = unit.active and not self.findBuff(unit.id) or false
 	if missing ~= unit[key] then
 		unit[key] = missing
 		WheelCast:Update(self.moduleName)

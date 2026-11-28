@@ -64,7 +64,7 @@ function mod:OnEnable()
 		0, "Disable")
 
 	self:RegisterEvent("GROUP_ROSTER_UPDATE", "ScanRoster")
-	self:RegisterBucketEvent({ "UNIT_CONNECTION", "UNIT_HEALTH", "UNIT_IN_RANGE_UPDATE" }, 0.1, "ScanUnits")
+	self:RegisterBucketEvent({ "UNIT_CONNECTION", "UNIT_HEALTH" }, 0.1, "ScanUnits")
 
 	local anchorDb = mod.db.profile.anchor
 	self.anchor:SetPoint(anchorDb.point, anchorDb.x, anchorDb.y)
@@ -395,47 +395,48 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 
 mod.units = {}
+local function iteratePlayerUnit(_, index)
+	if index == 0 then
+		return 1, "player"
+	end
+end
 
-local groupIters = {
-	alone = function(_, index)
-		if index == 0 then
-			return 1, "player"
-		end
-	end,
-	party = function(_, index)
-		index = index + 1
-		if index > 5 then
-			return
-		end
-		return index, string.format("party%d", index)
-	end,
-	raid = function(_, index)
-		index = index + 1
-		if index > 40 then
-			return
-		end
-		return index, string.format("raid%d", index)
-	end,
-}
+local function iteratePlayerAndPartyUnits(_, index)
+	index = index + 1
+	if index == 5 then
+		return 5, "player"
+	elseif index > 5 then
+		return
+	end
+	return index, string.format("party%d", index)
+end
+
+local function iterateRaidUnits(_, index)
+	index = index + 1
+	if index > 40 then
+		return
+	end
+	return index, string.format("raid%d", index)
+end
 
 local function getGroupType()
 	if IsInRaid() then
-		return "raid"
+		return "raid", iterateRaidUnits
 	end
 	if IsInGroup() then
-		return "party"
+		return "party", iteratePlayerAndPartyUnits
 	end
-	return "alone"
+	return "alone", iteratePlayerUnit
 end
 
 function mod:ScanRoster(event)
-	local groupType = getGroupType()
+	local groupType, iterateGroupUnits = getGroupType()
 	if groupType ~= self.groupType then
 		self:Debug("changed group type", self.groupType, "=>", groupType)
 		self.groupType = groupType
 		wipe(self.units)
 	end
-	for _, unitID in groupIters[groupType], nil, 0 do
+	for _, unitID in iterateGroupUnits, nil, 0 do
 		if UnitExists(unitID) then
 			local unit, guid = self.units[unitID], UnitGUID(unitID)
 			if not unit then
