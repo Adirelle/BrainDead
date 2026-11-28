@@ -64,6 +64,7 @@ function mod:OnEnable()
 		0, "Disable")
 
 	self:RegisterEvent("GROUP_ROSTER_UPDATE", "ScanRoster")
+	self:RegisterEvent("PLAYER_ROLES_ASSIGNED", "ScanRoster")
 	self:RegisterBucketEvent({ "UNIT_CONNECTION", "UNIT_HEALTH" }, 0.1, "ScanUnits")
 
 	local anchorDb = mod.db.profile.anchor
@@ -467,9 +468,10 @@ function mod:ScanUnits(unitIDs)
 		local unit = self.units[unitID]
 		if unit then
 			local active = UnitIsConnected(unitID) and not UnitIsDeadOrGhost(unitID)
-			if active ~= unit.active then
-				unit.active = active
-				self:Debug("unit", unit, active and "activated" or "deactivated")
+			local role = UnitGroupRolesAssigned(unitID)
+			if active ~= unit.active or role ~= unit.role then
+				unit.active, unit.role = active, role
+				self:Debug("unit", unit, active and "activated" or "deactivated", role)
 				self:SendMessage("WheelCast_Unit_Changed", unit)
 			end
 		end
